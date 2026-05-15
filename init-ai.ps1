@@ -6,14 +6,23 @@
     Without flags   — Bootstraps a new project. Aborts if .windsurf/ already exists.
     --update        — Interactive diff: shows changes per file, prompts accept/reject/skip.
 
+.PARAMETER ProjectName
+    (Optional) Project name written into CLAUDE.md. Skips the interactive prompt.
+
+.PARAMETER Language
+    (Optional) User chat language written into CLAUDE.md (e.g. Spanish). Skips the interactive prompt.
+
 .EXAMPLE
     # From inside your project directory:
     & "$env:USERPROFILE\init-ai\init-ai.ps1"
     & "$env:USERPROFILE\init-ai\init-ai.ps1" --update
+    & "$env:USERPROFILE\init-ai\init-ai.ps1" -ProjectName my-app -Language Spanish
 #>
 
 param(
-    [switch]$update
+    [switch]$update,
+    [string]$ProjectName = "",
+    [string]$Language    = ""
 )
 
 Set-StrictMode -Version Latest
@@ -126,8 +135,8 @@ function Invoke-Bootstrap {
     $claudeMd   = Join-Path $claudeDir "CLAUDE.md"
     New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null
 
-    $projectName  = Read-Host "Project name (for CLAUDE.md)"
-    $userLanguage = Read-Host "User chat language (e.g. Spanish, English)"
+    $projectName  = if ($ProjectName) { $ProjectName } else { Read-Host "Project name (for CLAUDE.md)" }
+    $userLanguage = if ($Language)     { $Language }     else { Read-Host "User chat language (e.g. Spanish, English)" }
 
     $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw
     $compiled = $template -replace "{{PROJECT_NAME}}", $projectName

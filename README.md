@@ -66,7 +66,11 @@ The updater:
 
 ## Versioning
 
-The framework uses [semantic versioning](https://semver.org/). Each project tracks which version it was last updated to via `.windsurf/.init-ai-version`. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+The framework uses [semantic versioning](https://semver.org/). See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
+Each bootstrapped project stores two tracking files inside `.windsurf/`:
+- `.init-ai-version` — the framework version last applied (commit this so teammates know)
+- `.init-ai-template-hash` — hash of the CLAUDE.md template at last update (used to detect template changes)
 
 ---
 

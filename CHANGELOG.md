@@ -4,6 +4,17 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-05-18
+
+### Added
+- **`--help` flag**: `init-ai --help` shows all available commands and usage
+- **CLAUDE.md template change detection**: `--update` warns when the CLAUDE.md template has changed, shows the diff, and suggests manual review (cannot auto-merge due to project-specific edits)
+- Template hash stored in `.windsurf/.init-ai-template-hash` during bootstrap and update
+
+### Changed
+- `.windsurf/.init-ai-version` is now documented as a file to commit (so teammates know the installed version)
+- README updated with versioning tracking files documentation
+
 ## [0.3.0] — 2026-05-18
 
 ### Added

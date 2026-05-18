@@ -23,6 +23,7 @@ param(
     [switch]$update,
     [switch]$version,
     [switch]$changelog,
+    [switch]$help,
     [string]$ProjectName = "",
     [string]$Language    = ""
 )
@@ -193,9 +194,14 @@ function Invoke-Bootstrap {
     Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
     Write-Ok "Generated .claude/CLAUDE.md"
 
-    # 5. Stamp version
+    # 5. Stamp version + template hash
     Write-VersionStamp
     Write-Ok "Stamped version $FRAMEWORK_VERSION"
+
+    $templateHashFile = Join-Path $windsurfDir ".init-ai-template-hash"
+    $templateHash = (Get-FileHash (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Algorithm MD5).Hash
+    Set-Content -Path $templateHashFile -Value $templateHash -Encoding UTF8
+    Write-Ok "Stored CLAUDE.md template hash"
 
     Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
     Write-Host ""
@@ -279,6 +285,48 @@ function Invoke-Update {
         }
     }
 
+    # Check CLAUDE.md template for changes
+    $templateSrc = Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template"
+    $claudeMd    = Join-Path $TARGET ".claude\CLAUDE.md"
+    $templateHashFile = Join-Path $TARGET ".windsurf" ".init-ai-template-hash"
+
+    if (Test-Path $claudeMd) {
+        $currentTemplateHash = (Get-FileHash $templateSrc -Algorithm MD5).Hash
+        $storedTemplateHash  = $null
+
+        if (Test-Path $templateHashFile) {
+            $storedTemplateHash = (Get-Content $templateHashFile -Raw).Trim()
+        }
+
+        if ($storedTemplateHash -ne $currentTemplateHash) {
+            Write-Host ""
+            Write-Host "--- CLAUDE.md template ---" -ForegroundColor White
+            Write-Warn "The CLAUDE.md template has changed since your last update."
+            Write-Host "  Your .claude/CLAUDE.md may have project-specific edits, so it cannot be auto-merged." -ForegroundColor DarkYellow
+            Write-Host "  Review the template diff below and apply relevant changes manually." -ForegroundColor DarkYellow
+
+            if ($storedTemplateHash) {
+                # Show diff of the template itself
+                $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
+                if ($gitAvailable) {
+                    Write-Host ""
+                    git diff --no-index --color=always $claudeMd $templateSrc 2>&1 | Select-Object -First 80 | ForEach-Object { Write-Host "  $_" }
+                }
+            } else {
+                Write-Host "  (No previous template hash found — first update since versioning was added)" -ForegroundColor DarkGray
+            }
+
+            Write-Host ""
+            Write-Host "  Template location: $templateSrc" -ForegroundColor DarkGray
+
+            # Store hash so we don't warn again until next template change
+            Set-Content -Path $templateHashFile -Value $currentTemplateHash -Encoding UTF8
+            Write-Ok "Template hash stored for future comparisons"
+        } else {
+            Write-Skip "CLAUDE.md template unchanged"
+        }
+    }
+
     # Stamp new version
     if ($accepted -gt 0) {
         Write-VersionStamp
@@ -294,7 +342,19 @@ function Invoke-Update {
 # Entry point
 # ---------------------------------------------------------------------------
 
-if ($version) {
+if ($help) {
+    Write-Host ""
+    Write-Host "init-ai v$FRAMEWORK_VERSION" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Usage:" -ForegroundColor White
+    Write-Host "  init-ai                                    Bootstrap a new project"
+    Write-Host "  init-ai -ProjectName foo -Language English  Bootstrap (non-interactive)"
+    Write-Host "  init-ai --update                           Update an existing project"
+    Write-Host "  init-ai --version                          Show framework version"
+    Write-Host "  init-ai --changelog                        Show full changelog"
+    Write-Host "  init-ai --help                             Show this help"
+    Write-Host ""
+} elseif ($version) {
     Write-Host "init-ai v$FRAMEWORK_VERSION"
 } elseif ($changelog) {
     $changelogPath = Join-Path $INIT_AI_HOME "CHANGELOG.md"

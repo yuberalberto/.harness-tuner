@@ -27,9 +27,11 @@ Optionally specify a base branch (e.g., `/review main`); defaults to `main` or `
    - Are there unnecessary abstractions or premature optimizations?
 
 5. **Review for security**
-   - Any unsanitized user input reaching a command, query, or renderer?
-   - Any secrets or credentials hardcoded?
-   - Any new dependencies introduced? Are they trustworthy and up to date?
+   - **Exposed secrets**: High-entropy strings, patterns (`AKIA[0-9A-Z]{16}`, `ghp_[A-Za-z0-9]{36}`, `sk-[A-Za-z0-9]{20,}`, `-----BEGIN`), sensitive files (`.env*`, `*.pem`, `id_rsa*`, `credentials.json`). Log file:line — never display secret values.
+   - **Injection vulnerabilities**: SQL (string concatenation into queries instead of parameterized statements), command injection (unsanitized user input passed to shell), path traversal (user-controlled file paths without sanitization), XSS (user input rendered as HTML without escaping).
+   - **Dangerous patterns**: JS/TS: `eval(`, `innerHTML =`, `dangerouslySetInnerHTML`, `document.write`. Python: `eval(`, `exec(`, `pickle.loads`, `subprocess.*shell=True`, `yaml.load` without SafeLoader. Any language: hardcoded credentials, plaintext `http://` for sensitive endpoints, disabled TLS verification.
+   - **Auth and authorization**: New routes or endpoints protected by auth middleware? Missing authorization checks (any user accessing another user's data)? Session tokens or JWTs handled securely?
+   - **New dependencies**: List any new packages. Are they well-maintained with no known critical CVEs?
 
 6. **Review for test coverage**
    - Are the changed code paths tested?

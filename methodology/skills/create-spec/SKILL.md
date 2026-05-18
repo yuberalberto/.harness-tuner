@@ -54,6 +54,11 @@ Stop when Problem, What, How, and at least one Task with criteria are resolved.
 
 ### TASK-001: [short title]
 **Goal:** [one line]
+**Files:** [list of files to create/modify]
+**Message template:** [exact output the user/system will see — only when the
+task produces visible output. Omit for internal-only tasks.]
+**Hints:** [1-2 concise lines — API to use, where to hook in, key gotcha.
+Not pseudo-code. Omit for straightforward tasks.]
 **Acceptance criteria:**
 - [ ] Criterion 1 (testable)
 - [ ] Criterion 2 (testable)

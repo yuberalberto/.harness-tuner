@@ -39,12 +39,12 @@ Invoke this workflow when reviewing code before merging. Usage: `/pr-review [bra
 
 ### Step 4: Security Review
 
-- Are secrets hardcoded anywhere?
-- Is all external input validated?
-- Are auth checks present at boundaries?
-- Is sensitive data logged?
-- Are dependencies safe (no known vulnerabilities)?
-- **Output**: Security assessment (Pass / Vulnerabilities identified)
+- **Exposed secrets**: High-entropy strings, patterns (`AKIA[0-9A-Z]{16}`, `ghp_[A-Za-z0-9]{36}`, `sk-[A-Za-z0-9]{20,}`, `-----BEGIN`), sensitive files (`.env*`, `*.pem`, `id_rsa*`, `credentials.json`). Log file:line — never display secret values.
+- **Injection vulnerabilities**: SQL (string concatenation into queries instead of parameterized statements), command injection (unsanitized user input passed to shell), path traversal (user-controlled file paths without sanitization), XSS (user input rendered as HTML without escaping).
+- **Dangerous patterns**: JS/TS: `eval(`, `innerHTML =`, `dangerouslySetInnerHTML`, `document.write`. Python: `eval(`, `exec(`, `pickle.loads`, `subprocess.*shell=True`, `yaml.load` without SafeLoader. Any language: hardcoded credentials, plaintext `http://` for sensitive endpoints, disabled TLS verification.
+- **Auth and authorization**: New routes or endpoints protected by auth middleware? Missing authorization checks (any user accessing another user's data)? Session tokens or JWTs handled securely? Sensitive data logged?
+- **Dependencies**: List any new packages. Are they well-maintained with no known critical CVEs?
+- **Output**: Security assessment (Risk Level: CRITICAL / HIGH / MEDIUM / LOW / CLEAN) with file:line for each finding.
 
 ### Step 5: Architecture Review
 

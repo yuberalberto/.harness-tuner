@@ -22,8 +22,11 @@ Usage: `/validate-spec [feature-name]`
 3. **Validate each task**:
    - [ ] Has a unique ID (TASK-XXX)
    - [ ] Has a Goal line
+   - [ ] Has a Files line (list of files to create/modify)
    - [ ] Has at least one testable acceptance criterion
    - [ ] Dependencies declared (even if "none")
+   - [ ] If task produces visible output: has a Message template
+   - [ ] If task is non-trivial: has Hints (1-2 lines, not pseudo-code)
 4. **Coherence check**:
    - [ ] Problem and What are aligned (the feature solves the stated problem)
    - [ ] How references real modules/files in the codebase

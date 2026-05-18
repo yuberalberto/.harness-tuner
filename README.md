@@ -53,7 +53,7 @@ Shows a per-file diff. For each changed file: Accept (a), Reject (r), or Skip (s
 - **Spec-Driven + Test-Driven Development** (SDD+TDD)
 - **Engram memory protocol** — persistent context across sessions
 - **Permission-based collaboration** — agents ask before acting
-- **15 workflows** covering the full development lifecycle
+- **14 workflows** covering the full development lifecycle
 - **3 SDD skills** for spec creation, validation, and test execution
 - **CLAUDE.md template** with critical rules inline + workflow references
 
@@ -91,8 +91,8 @@ Write a spec, get approval, implement each task via TDD, archive the spec.
 ### Bug fixes → `/tdd-cycle`
 Red → Green → Refactor → Edge cases → Save observation.
 
-### Code quality → `/simplify`, `/review`, `/security-review`
-Post-implementation cleanup, branch review, focused security audit.
+### Code quality → `/simplify`, `/review`
+Post-implementation cleanup and branch review (correctness, quality, security, coverage).
 
 ### Project health → `/audit`
 Pre-push audit: deps, linters, secrets, dangerous patterns, tests.

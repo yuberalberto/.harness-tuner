@@ -62,7 +62,6 @@ Before editing any file or executing terminal commands:
 | `/handoff` | Save thematic context to Engram for later restoration |
 | `/restore-context` | Restore a handoff by ID or topic key |
 | `/review` | Code review: correctness, quality, security, coverage |
-| `/security-review` | Focused OWASP + secrets + dependency security review |
 | `/safe-delete` | Safely remove code/files without breaking the project |
 | `/simplify` | Find and fix complexity, duplication, dead code |
 | `/context-doc` | Generate a context document for an existing codebase |

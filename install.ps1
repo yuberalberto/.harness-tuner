@@ -7,17 +7,50 @@
     - ~/init-ai/adapters/claude-code/skills/[workflow]/  (for workflow wrappers + init-ai meta)
     - ~/init-ai/methodology/skills/[skill]/              (for SDD skills: create-spec, run-tests, validate-spec)
 
-    Run once per machine. Run again to add new skills after updating init-ai.
+    Run once per machine. Use --force to reinstall.
 
 .EXAMPLE
     & "$env:USERPROFILE\init-ai\install.ps1"
+    & "$env:USERPROFILE\init-ai\install.ps1" --force
 #>
+
+param(
+    [switch]$force
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $INIT_AI_HOME  = $PSScriptRoot
 $CLAUDE_SKILLS = Join-Path $env:USERPROFILE ".claude\skills"
+$VERSION       = (Get-Content (Join-Path $INIT_AI_HOME "VERSION") -Raw).Trim()
+
+# ---------------------------------------------------------------------------
+# Already-installed check
+# ---------------------------------------------------------------------------
+
+function Test-AlreadyInstalled {
+    $hasJunctions = (Test-Path $CLAUDE_SKILLS) -and
+        ((Get-ChildItem -Directory $CLAUDE_SKILLS -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
+
+    $hasAlias = $false
+    $profilePath = $PROFILE.CurrentUserAllHosts
+    if (Test-Path $profilePath) {
+        $hasAlias = (Get-Content $profilePath -Raw) -match 'function init-ai'
+    }
+
+    return ($hasJunctions -and $hasAlias)
+}
+
+if (-not $force -and (Test-AlreadyInstalled)) {
+    Write-Host ""
+    Write-Host "init-ai is already installed (v$VERSION)" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  To update a project:  init-ai --update" -ForegroundColor White
+    Write-Host "  To reinstall:         & `"$env:USERPROFILE\init-ai\install.ps1`" --force" -ForegroundColor White
+    Write-Host ""
+    exit 0
+}
 
 function Write-Ok([string]$msg)   { Write-Host "  [OK] $msg"   -ForegroundColor Green }
 function Write-Skip([string]$msg) { Write-Host "  [--] $msg"   -ForegroundColor DarkGray }

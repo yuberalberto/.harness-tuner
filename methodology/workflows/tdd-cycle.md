@@ -75,11 +75,35 @@ Skip allowed only when the task was purely mechanical (e.g., renaming a paramete
 formatting). When skipping, state the skip explicitly to the user: "Skipping mem_save:
 purely mechanical task with no learning to capture."
 
-### Step 7: Mark Task Complete
+### Step 7: Document in Spec
 
-If this task came from a `spec.md`, mark the corresponding task entry as `[x]` in
-that file. This is how `/spec-to-code` knows when all tasks are done and the spec
-can be deleted.
+If this task came from a `spec.md`, update the spec to reflect completion:
+
+1. **Mark acceptance criteria** — check all criteria as `[x]` in the task section.
+
+2. **Add implementation notes** — append an `**Implementation notes:**` block
+   immediately after the acceptance criteria. Keep it scoped to THIS task only.
+   Include:
+   - What was done (brief, 2-4 lines)
+   - Files touched and key changes per file
+   - Non-obvious decisions or gotchas discovered during implementation
+   - Compatibility fixes or deviations from the original plan (if any)
+
+   Do NOT document other tasks or general project context.
+
+3. **Update the Dependency Graph** — in the `## Dependency Graph & Execution Order`
+   section at the top of the spec, mark this task as `✅`. Leave other tasks
+   unchanged.
+
+   Graph format example:
+   ```
+   TASK-001 (short label) ✅ ──┐
+   TASK-002 (short label) ✅ ──┼──> TASK-004 (short label)
+   TASK-003 (short label)    ──┘
+   ```
+
+This step replaces a separate "mark complete" step — the checked criteria and
+`✅` in the graph are how `/spec-to-code` knows the task is done.
 
 ## Output
 
@@ -88,4 +112,4 @@ At completion:
 - Edge cases covered
 - Code is clean and follows standards
 - An Engram observation was saved (or the skip was justified)
-- Task marked `[x]` in `spec.md` if applicable
+- Spec updated: criteria checked, implementation notes added, dependency graph current

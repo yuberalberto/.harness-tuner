@@ -22,6 +22,7 @@
 param(
     [switch]$update,
     [switch]$version,
+    [switch]$changelog,
     [string]$ProjectName = "",
     [string]$Language    = ""
 )
@@ -295,6 +296,13 @@ function Invoke-Update {
 
 if ($version) {
     Write-Host "init-ai v$FRAMEWORK_VERSION"
+} elseif ($changelog) {
+    $changelogPath = Join-Path $INIT_AI_HOME "CHANGELOG.md"
+    if (Test-Path $changelogPath) {
+        Get-Content $changelogPath | ForEach-Object { Write-Host $_ }
+    } else {
+        Write-Host "CHANGELOG.md not found." -ForegroundColor Red
+    }
 } elseif ($update) {
     Invoke-Update
 } else {

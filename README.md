@@ -9,16 +9,17 @@ Works with Claude Code + Cascade (Windsurf). Future-proof for other agents.
 
 ### Step 1 — Install (once per machine)
 
-Clone this repo:
+Clone this repo and run the installer:
 
 ```powershell
 git clone https://github.com/your-username/init-ai.git $env:USERPROFILE\init-ai
+& "$env:USERPROFILE\init-ai\install.ps1"
 ```
 
-Set up Claude Code skill shortcuts:
+This sets up Claude Code skill shortcuts and adds the `init-ai` command to your shell. Reload your profile to use it immediately:
 
 ```powershell
-& "$env:USERPROFILE\init-ai\install.ps1"
+. $PROFILE
 ```
 
 ### Step 2 — Bootstrap a new project
@@ -26,7 +27,7 @@ Set up Claude Code skill shortcuts:
 Navigate to your project directory, then run:
 
 ```powershell
-& "$env:USERPROFILE\init-ai\init-ai.ps1"
+init-ai
 ```
 
 You will be prompted for a project name and chat language.
@@ -35,13 +36,13 @@ This copies the methodology to `.windsurf/` and generates `.claude/CLAUDE.md`.
 To skip the prompts:
 
 ```powershell
-& "$env:USERPROFILE\init-ai\init-ai.ps1" -ProjectName "my-app" -Language "English"
+init-ai -ProjectName "my-app" -Language "English"
 ```
 
 ### Step 3 — Update an existing project
 
 ```powershell
-& "$env:USERPROFILE\init-ai\init-ai.ps1" --update
+init-ai --update
 ```
 
 The updater:

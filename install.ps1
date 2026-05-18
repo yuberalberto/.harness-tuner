@@ -73,6 +73,35 @@ Get-ChildItem -Directory $methodologySkills | ForEach-Object {
 }
 
 # ---------------------------------------------------------------------------
+# Shell alias — add `init-ai` function to PowerShell profile
+# ---------------------------------------------------------------------------
+
+$profilePath = $PROFILE.CurrentUserAllHosts
+$aliasBlock  = @'
+
+# init-ai — bootstrap & update AI methodology
+function init-ai { & "$env:USERPROFILE\init-ai\init-ai.ps1" @args }
+'@
+
+$aliasInstalled = $false
+if (Test-Path $profilePath) {
+    $profileContent = Get-Content $profilePath -Raw
+    if ($profileContent -match 'function init-ai') {
+        Write-Skip "Shell alias 'init-ai' already in profile"
+        $aliasInstalled = $true
+    }
+}
+
+if (-not $aliasInstalled) {
+    if (-not (Test-Path (Split-Path $profilePath))) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $profilePath) | Out-Null
+    }
+    Add-Content -Path $profilePath -Value $aliasBlock -Encoding UTF8
+    Write-Ok "Added 'init-ai' alias to $profilePath"
+    Write-Host "    Reload with: . `$PROFILE" -ForegroundColor DarkYellow
+}
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 Write-Host ""
@@ -82,6 +111,10 @@ $count = (Get-ChildItem -Directory $CLAUDE_SKILLS | Measure-Object).Count
 Write-Host "  Skills installed: $count"
 Write-Host "  Location: $CLAUDE_SKILLS"
 Write-Host ""
-Write-Host "  You can now use these slash commands in Claude Code:"
+Write-Host "  Usage:" -ForegroundColor White
+Write-Host "    init-ai                  # bootstrap a project"
+Write-Host "    init-ai --update         # update an existing project"
+Write-Host ""
+Write-Host "  Slash commands available in Claude Code:"
 Get-ChildItem -Directory $CLAUDE_SKILLS | ForEach-Object { Write-Host "    /$($_.Name)" }
 Write-Host ""

@@ -10,10 +10,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Versioning system**: `VERSION` file, `CHANGELOG.md`, and version stamp in projects (`.windsurf/.init-ai-version`)
 - **Smart updater**: `--update` now shows changelog entries between your version and the latest before prompting per-file diffs
 - **tdd-cycle Step 7 "Document in Spec"**: replaces "Mark Task Complete" — now writes implementation notes, marks acceptance criteria `[x]`, and updates the dependency graph with `✅`
+- **Shell alias**: `install.ps1` registers `init-ai` function in PowerShell profile — no more typing the full path
+- **`--version` flag**: `init-ai --version` prints current framework version
+- **`--changelog` flag**: `init-ai --changelog` prints the full changelog
+- **Install guard**: `install.ps1` detects existing installation, shows version, and suggests `--force` to reinstall
 
 ### Changed
 - `init-ai.ps1` bootstrap writes `.windsurf/.init-ai-version` on install
 - `init-ai.ps1 --update` reads project version, displays relevant changelog, and stamps new version after completion
+- `install.ps1` accepts `--force` flag to bypass already-installed check
+- README updated: simplified commands using `init-ai` alias, added versioning section and `VERSION`/`CHANGELOG.md` to directory tree
 
 ## [0.2.0] — 2026-05-18
 

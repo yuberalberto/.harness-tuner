@@ -21,6 +21,7 @@
 
 param(
     [switch]$update,
+    [switch]$version,
     [string]$ProjectName = "",
     [string]$Language    = ""
 )
@@ -292,7 +293,9 @@ function Invoke-Update {
 # Entry point
 # ---------------------------------------------------------------------------
 
-if ($update) {
+if ($version) {
+    Write-Host "init-ai v$FRAMEWORK_VERSION"
+} elseif ($update) {
     Invoke-Update
 } else {
     Invoke-Bootstrap

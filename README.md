@@ -44,7 +44,11 @@ To skip the prompts:
 & "$env:USERPROFILE\init-ai\init-ai.ps1" --update
 ```
 
-Shows a per-file diff. For each changed file: Accept (a), Reject (r), or Skip (s).
+The updater:
+1. Compares your project's installed version against the latest
+2. Shows the changelog entries since your version
+3. For each changed file: shows a diff and prompts Accept (a), Reject (r), or Skip (s)
+4. Stamps the new version in `.windsurf/.init-ai-version`
 
 ---
 
@@ -59,12 +63,20 @@ Shows a per-file diff. For each changed file: Accept (a), Reject (r), or Skip (s
 
 ---
 
+## Versioning
+
+The framework uses [semantic versioning](https://semver.org/). Each project tracks which version it was last updated to via `.windsurf/.init-ai-version`. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+
+---
+
 ## Directory structure
 
 ```
 init-ai/
 ├── init-ai.ps1               # Bootstrap + update script
 ├── install.ps1               # One-time PC setup (Claude Code junctions)
+├── VERSION                   # Current framework version (semver)
+├── CHANGELOG.md              # Release history
 │
 ├── methodology/              # Source of truth (agent-agnostic)
 │   ├── rules/                # code-standards, sdd-process, security, testing

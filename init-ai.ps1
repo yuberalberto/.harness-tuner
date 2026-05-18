@@ -31,6 +31,8 @@ $ErrorActionPreference = "Stop"
 $INIT_AI_HOME = $PSScriptRoot
 $METHODOLOGY  = Join-Path $INIT_AI_HOME "methodology"
 $TARGET       = Get-Location | Select-Object -ExpandProperty Path
+$FRAMEWORK_VERSION = (Get-Content (Join-Path $INIT_AI_HOME "VERSION") -Raw).Trim()
+$VERSION_STAMP     = Join-Path $TARGET ".windsurf" ".init-ai-version"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,6 +51,50 @@ function Write-Err([string]$msg)  { Write-Host "  [XX] $msg"   -ForegroundColor 
 function Prompt-YesNo([string]$question) {
     $response = Read-Host "$question [y/n]"
     return $response -match "^[yY]"
+}
+
+function Get-ProjectVersion {
+    if (Test-Path $VERSION_STAMP) {
+        return (Get-Content $VERSION_STAMP -Raw).Trim()
+    }
+    return $null
+}
+
+function Write-VersionStamp {
+    New-Item -ItemType Directory -Force -Path (Split-Path $VERSION_STAMP) | Out-Null
+    Set-Content -Path $VERSION_STAMP -Value $FRAMEWORK_VERSION -Encoding UTF8
+}
+
+function Show-ChangelogSince([string]$fromVersion) {
+    $changelogPath = Join-Path $INIT_AI_HOME "CHANGELOG.md"
+    if (-not (Test-Path $changelogPath)) { return }
+
+    $lines    = Get-Content $changelogPath
+    $printing = $false
+    $output   = @()
+
+    foreach ($line in $lines) {
+        if ($line -match '^\#\# \[(.+?)\]') {
+            $sectionVer = $Matches[1]
+            if ($fromVersion -and $sectionVer -eq $fromVersion) {
+                break
+            }
+            $printing = $true
+        }
+        if ($printing) {
+            $output += $line
+        }
+    }
+
+    if ($output.Count -gt 0) {
+        Write-Host ""
+        Write-Host "Changes since v${fromVersion}:" -ForegroundColor Cyan
+        Write-Host ""
+        foreach ($l in $output) {
+            Write-Host "  $l" -ForegroundColor DarkYellow
+        }
+        Write-Host ""
+    }
 }
 
 function Show-Diff([string]$srcFile, [string]$dstFile) {
@@ -145,7 +191,11 @@ function Invoke-Bootstrap {
     Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
     Write-Ok "Generated .claude/CLAUDE.md"
 
-    Write-Header "Bootstrap complete"
+    # 5. Stamp version
+    Write-VersionStamp
+    Write-Ok "Stamped version $FRAMEWORK_VERSION"
+
+    Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
     Write-Host ""
     Write-Host "  Next steps:" -ForegroundColor White
     Write-Host "  1. Edit .claude/CLAUDE.md — fill in the PROJECT-SPECIFIC section at the bottom"
@@ -164,6 +214,23 @@ function Invoke-Update {
         Write-Err "Project not yet initialized (.windsurf/ not found). Run without --update first."
         exit 1
     }
+
+    $projectVersion = Get-ProjectVersion
+    if ($projectVersion) {
+        Write-Host "  Project version: v$projectVersion" -ForegroundColor White
+    } else {
+        Write-Host "  Project version: unknown (pre-versioning install)" -ForegroundColor Yellow
+    }
+    Write-Host "  Latest version:  v$FRAMEWORK_VERSION" -ForegroundColor White
+
+    if ($projectVersion -eq $FRAMEWORK_VERSION) {
+        Write-Host ""
+        Write-Host "  Already up to date." -ForegroundColor Green
+        Write-Host ""
+        return
+    }
+
+    Show-ChangelogSince $projectVersion
 
     Write-Header "Updating $TARGET"
 
@@ -210,7 +277,13 @@ function Invoke-Update {
         }
     }
 
-    Write-Header "Update complete"
+    # Stamp new version
+    if ($accepted -gt 0) {
+        Write-VersionStamp
+        Write-Ok "Stamped version $FRAMEWORK_VERSION"
+    }
+
+    Write-Header "Update complete (v$FRAMEWORK_VERSION)"
     Write-Host "  Accepted: $accepted  |  Rejected: $rejected  |  Skipped: $skipped"
     Write-Host ""
 }

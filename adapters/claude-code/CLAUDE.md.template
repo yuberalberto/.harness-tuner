@@ -72,8 +72,8 @@ Before editing any file or executing terminal commands:
 
 ---
 
-<!-- PROJECT-SPECIFIC: Fill in below -->
 ## Project Context
+<!-- init-ai:{{FRAMEWORK_VERSION}} -->
 
 <!-- Add project-specific context here:
      - Runtime constraints (e.g., target OS, Python version, browser support)

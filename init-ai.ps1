@@ -55,6 +55,29 @@ function Write-Header([string]$msg) {
 function Write-Ok([string]$msg)   { Write-Host "  [OK] $msg"   -ForegroundColor Green }
 function Write-Skip([string]$msg) { Write-Host "  [--] $msg"   -ForegroundColor DarkGray }
 function Write-Warn([string]$msg) { Write-Host "  [!!] $msg"   -ForegroundColor Yellow }
+
+function Get-ClaudeMdMarkerVersion([string]$claudeMdPath) {
+    if (-not (Test-Path $claudeMdPath)) { return $null }
+    $content = Get-Content $claudeMdPath -Raw
+    if ($content -match '<!-- init-ai:(v[\d.]+) -->') { return $Matches[1] }
+    return $null
+}
+
+function Get-ProjectContextSection {
+    return @"
+
+## Project Context
+<!-- init-ai:v$FRAMEWORK_VERSION -->
+
+<!-- Add project-specific context here:
+     - Runtime constraints (e.g., target OS, Python version, browser support)
+     - Compatibility requirements
+     - Build/run commands
+     - Key architectural decisions
+     - Team conventions not covered by the standards above
+-->
+"@
+}
 function Write-Err([string]$msg)  { Write-Host "  [XX] $msg"   -ForegroundColor Red }
 
 function Prompt-YesNo([string]$question) {
@@ -200,40 +223,22 @@ function Invoke-Bootstrap {
     $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw
     $compiled = $template -replace "{{PROJECT_NAME}}", $projectName
     $compiled = $compiled -replace "{{USER_LANGUAGE}}", $userLanguage
+    $compiled = $compiled -replace "{{FRAMEWORK_VERSION}}", "v$FRAMEWORK_VERSION"
 
-    if (Test-Path $claudeMd) {
-        Write-Host ""
-        Write-Warn ".claude/CLAUDE.md already exists."
-        Write-Host "  (a) Append template to the end" -ForegroundColor White
-        Write-Host "  (r) Replace with fresh template" -ForegroundColor White
-        Write-Host "  (s) Skip" -ForegroundColor White
-        $choice = Read-Host "  Choice [a/r/s]"
-        switch ($choice.ToLower()) {
-            "a" {
-                Add-Content -Path $claudeMd -Value "`n`n$compiled" -Encoding UTF8
-                Write-Ok "Appended to .claude/CLAUDE.md"
-            }
-            "r" {
-                Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
-                Write-Ok "Replaced .claude/CLAUDE.md"
-            }
-            default {
-                Write-Skip "Skipped .claude/CLAUDE.md"
-            }
-        }
-    } else {
+    $markerVersion = Get-ClaudeMdMarkerVersion $claudeMd
+    if (-not (Test-Path $claudeMd)) {
         Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
         Write-Ok "Generated .claude/CLAUDE.md"
+    } elseif ($markerVersion) {
+        Write-Skip ".claude/CLAUDE.md already managed by init-ai ($markerVersion)"
+    } else {
+        Add-Content -Path $claudeMd -Value (Get-ProjectContextSection) -Encoding UTF8
+        Write-Ok "Appended Project Context to .claude/CLAUDE.md"
     }
 
-    # 5. Stamp version + template hash
+    # 5. Stamp version
     Write-VersionStamp
     Write-Ok "Stamped version $FRAMEWORK_VERSION"
-
-    $templateHashFile = Join-Path $windsurfDir ".init-ai-template-hash"
-    $templateHash = (Get-FileHash (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Algorithm MD5).Hash
-    Set-Content -Path $templateHashFile -Value $templateHash -Encoding UTF8
-    Write-Ok "Stored CLAUDE.md template hash"
 
     Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
     Write-Host ""
@@ -315,37 +320,21 @@ function Invoke-Update {
         }
     }
 
-    # Check CLAUDE.md template for changes
-    $templateSrc = Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template"
-    $claudeMd    = Join-Path $TARGET ".claude\CLAUDE.md"
-    $templateHashFile = Join-Path $TARGET ".windsurf" ".init-ai-template-hash"
+    # Check CLAUDE.md marker version
+    $claudeMd      = Join-Path $TARGET ".claude\CLAUDE.md"
+    $markerVersion = Get-ClaudeMdMarkerVersion $claudeMd
 
-    if (Test-Path $claudeMd) {
-        $currentTemplateHash = (Get-FileHash $templateSrc -Algorithm MD5).Hash
-        $storedTemplateHash  = $null
-
-        if (Test-Path $templateHashFile) {
-            $storedTemplateHash = (Get-Content $templateHashFile -Raw).Trim()
-        }
-
-        if ($storedTemplateHash -ne $currentTemplateHash) {
-            Write-Host ""
-            Write-Host "--- CLAUDE.md template ---" -ForegroundColor White
-            Write-Warn "Template changed — update .claude/CLAUDE.md manually."
-
-            if ($storedTemplateHash) {
-                $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
-                if ($gitAvailable) {
-                    Write-Host ""
-                    git diff --no-index --color=always $claudeMd $templateSrc 2>&1 | Select-Object -First 80 | ForEach-Object { Write-Host "  $_" }
-                }
-            }
-
-            Write-Host "  Template: $templateSrc" -ForegroundColor DarkGray
-            Set-Content -Path $templateHashFile -Value $currentTemplateHash -Encoding UTF8
-        } else {
-            Write-Skip "CLAUDE.md template unchanged"
-        }
+    Write-Host ""
+    Write-Host "--- .claude/CLAUDE.md ---" -ForegroundColor White
+    if (-not (Test-Path $claudeMd)) {
+        Write-Skip "No .claude/CLAUDE.md found — skipping"
+    } elseif (-not $markerVersion) {
+        Add-Content -Path $claudeMd -Value (Get-ProjectContextSection) -Encoding UTF8
+        Write-Ok "Appended Project Context section (v$FRAMEWORK_VERSION)"
+    } elseif ($markerVersion -eq "v$FRAMEWORK_VERSION") {
+        Write-Skip "Project Context up to date ($markerVersion)"
+    } else {
+        Write-Warn "Project Context is at $markerVersion — latest is v$FRAMEWORK_VERSION. Review manually."
     }
 
     # Stamp new version

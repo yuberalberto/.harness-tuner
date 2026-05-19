@@ -31,6 +31,12 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+# Normalize --flag style (double-dash) to PowerShell switches
+if ($args -contains '--update')    { $update    = $true }
+if ($args -contains '--version')   { $version   = $true }
+if ($args -contains '--changelog') { $changelog = $true }
+if ($args -contains '--help')      { $help      = $true }
+
 $INIT_AI_HOME = $PSScriptRoot
 $METHODOLOGY  = Join-Path $INIT_AI_HOME "methodology"
 $TARGET       = Get-Location | Select-Object -ExpandProperty Path
@@ -231,7 +237,7 @@ function Invoke-Update {
     if ($projectVersion) {
         Write-Host "  Project version: v$projectVersion" -ForegroundColor White
     } else {
-        Write-Host "  Project version: unknown (pre-versioning install)" -ForegroundColor Yellow
+        Write-Host "  Project version: unknown (installed before v0.3.0 — no version stamp found)" -ForegroundColor Yellow
     }
     Write-Host "  Latest version:  v$FRAMEWORK_VERSION" -ForegroundColor White
 

@@ -30,8 +30,8 @@ Navigate to your project directory, then run:
 init-ai
 ```
 
-You will be prompted for a project name and chat language.
-This copies the methodology to `.windsurf/` and generates `.claude/CLAUDE.md`.
+Prompts for project name (defaults to the current folder name) and chat language.
+Copies the methodology to `.windsurf/` and generates `.claude/CLAUDE.md`.
 
 To skip the prompts:
 
@@ -42,7 +42,7 @@ init-ai -ProjectName "my-app" -Language "English"
 ### Step 3 — Update an existing project
 
 ```powershell
-init-ai --update
+init-ai -update
 ```
 
 The updater:
@@ -50,6 +50,7 @@ The updater:
 2. Shows the changelog entries since your version
 3. For each changed file: shows a diff and prompts Accept (a), Reject (r), or Skip (s)
 4. Stamps the new version in `.windsurf/.init-ai-version`
+5. Detects changes to the CLAUDE.md template and warns if manual review is needed
 
 ---
 
@@ -68,9 +69,9 @@ The updater:
 
 The framework uses [semantic versioning](https://semver.org/). See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
-Each bootstrapped project stores two tracking files inside `.windsurf/`:
-- `.init-ai-version` — the framework version last applied (commit this so teammates know)
-- `.init-ai-template-hash` — hash of the CLAUDE.md template at last update (used to detect template changes)
+Each bootstrapped project stores:
+- `.windsurf/.init-ai-version` — framework version last applied (commit this so teammates know)
+- `.claude/CLAUDE.md` — contains an `<!-- init-ai:hash -->` marker tracking the template version applied
 
 ---
 

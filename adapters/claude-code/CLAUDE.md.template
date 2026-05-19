@@ -73,7 +73,7 @@ Before editing any file or executing terminal commands:
 ---
 
 ## Project Context
-<!-- init-ai:{{FRAMEWORK_VERSION}} -->
+<!-- init-ai:{{TEMPLATE_HASH}} -->
 
 <!-- Add project-specific context here:
      - Runtime constraints (e.g., target OS, Python version, browser support)

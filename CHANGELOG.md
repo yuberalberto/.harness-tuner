@@ -4,6 +4,17 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-05-18
+
+### Changed
+- Bootstrap: if `.claude/CLAUDE.md` already exists, skip silently — project owns that file
+- Update: CLAUDE.md is never touched — not the framework's responsibility
+- Updater: shows diff summary (+N/-N lines) instead of full diff; press `d` to see full diff
+- Template: removed `<!-- init-ai:hash -->` marker — unnecessary complexity
+
+### Removed
+- All CLAUDE.md marker/hash tracking logic
+
 ## [0.5.0] — 2026-05-18
 
 ### Added

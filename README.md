@@ -48,9 +48,8 @@ init-ai -update
 The updater:
 1. Compares your project's installed version against the latest
 2. Shows the changelog entries since your version
-3. For each changed file: shows a diff and prompts Accept (a), Reject (r), or Skip (s)
+3. For each changed file: shows a summary and prompts Accept (a), Reject (r), Skip (s), or Diff (d)
 4. Stamps the new version in `.windsurf/.init-ai-version`
-5. Detects changes to the CLAUDE.md template and warns if manual review is needed
 
 ---
 
@@ -71,7 +70,6 @@ The framework uses [semantic versioning](https://semver.org/). See [CHANGELOG.md
 
 Each bootstrapped project stores:
 - `.windsurf/.init-ai-version` — framework version last applied (commit this so teammates know)
-- `.claude/CLAUDE.md` — contains an `<!-- init-ai:hash -->` marker tracking the template version applied
 
 ---
 

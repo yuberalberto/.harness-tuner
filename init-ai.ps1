@@ -56,33 +56,6 @@ function Write-Ok([string]$msg)   { Write-Host "  [OK] $msg"   -ForegroundColor 
 function Write-Skip([string]$msg) { Write-Host "  [--] $msg"   -ForegroundColor DarkGray }
 function Write-Warn([string]$msg) { Write-Host "  [!!] $msg"   -ForegroundColor Yellow }
 
-function Get-TemplateHash {
-    $templatePath = Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template"
-    return (Get-FileHash $templatePath -Algorithm MD5).Hash.ToLower().Substring(0, 8)
-}
-
-function Get-ClaudeMdMarkerHash([string]$claudeMdPath) {
-    if (-not (Test-Path $claudeMdPath)) { return $null }
-    $content = Get-Content $claudeMdPath -Raw
-    if ($content -match '<!-- init-ai:([a-f0-9]+) -->') { return $Matches[1] }
-    return $null
-}
-
-function Get-ProjectContextSection([string]$templateHash) {
-    return @"
-
-## Project Context
-<!-- init-ai:$templateHash -->
-
-<!-- Add project-specific context here:
-     - Runtime constraints (e.g., target OS, Python version, browser support)
-     - Compatibility requirements
-     - Build/run commands
-     - Key architectural decisions
-     - Team conventions not covered by the standards above
--->
-"@
-}
 function Write-Err([string]$msg)  { Write-Host "  [XX] $msg"   -ForegroundColor Red }
 
 function Prompt-YesNo([string]$question) {
@@ -224,21 +197,14 @@ function Invoke-Bootstrap {
     }
     $userLanguage = if ($Language)     { $Language }     else { Read-Host "User chat language (e.g. Spanish, English)" }
 
-    $templateHash = Get-TemplateHash
-    $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw
-    $compiled = $template -replace "{{PROJECT_NAME}}", $projectName
-    $compiled = $compiled -replace "{{USER_LANGUAGE}}", $userLanguage
-    $compiled = $compiled -replace "{{TEMPLATE_HASH}}", $templateHash
-
-    $markerHash = Get-ClaudeMdMarkerHash $claudeMd
     if (-not (Test-Path $claudeMd)) {
+        $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw
+        $compiled = $template -replace "{{PROJECT_NAME}}", $projectName
+        $compiled = $compiled -replace "{{USER_LANGUAGE}}", $userLanguage
         Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
         Write-Ok "Generated .claude/CLAUDE.md"
-    } elseif ($markerHash) {
-        Write-Skip ".claude/CLAUDE.md already managed by init-ai"
     } else {
-        Add-Content -Path $claudeMd -Value (Get-ProjectContextSection $templateHash) -Encoding UTF8
-        Write-Ok "Appended Project Context to .claude/CLAUDE.md"
+        Write-Skip ".claude/CLAUDE.md already exists — skipping"
     }
 
     # 5. Stamp version
@@ -333,22 +299,6 @@ function Invoke-Update {
 
     # Check CLAUDE.md template hash
     $claudeMd    = Join-Path $TARGET ".claude\CLAUDE.md"
-    $templateHash = Get-TemplateHash
-    $markerHash   = Get-ClaudeMdMarkerHash $claudeMd
-
-    Write-Host ""
-    Write-Host "--- .claude/CLAUDE.md ---" -ForegroundColor White
-    if (-not (Test-Path $claudeMd)) {
-        Write-Skip "No .claude/CLAUDE.md found — skipping"
-    } elseif (-not $markerHash) {
-        Add-Content -Path $claudeMd -Value (Get-ProjectContextSection $templateHash) -Encoding UTF8
-        Write-Ok "Appended Project Context section"
-    } elseif ($markerHash -eq $templateHash) {
-        Write-Skip "Project Context up to date"
-    } else {
-        Write-Warn "Project Context template changed — review .claude/CLAUDE.md manually."
-    }
-
     # Stamp new version
     if ($accepted -gt 0) {
         Write-VersionStamp

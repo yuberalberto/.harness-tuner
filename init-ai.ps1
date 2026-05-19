@@ -125,7 +125,11 @@ function Show-ChangelogSince([string]$fromVersion) {
 
     if ($output.Count -gt 0) {
         Write-Host ""
-        Write-Host "Changes since v${fromVersion}:" -ForegroundColor Cyan
+        if ($fromVersion) {
+            Write-Host "Changes since v${fromVersion}:" -ForegroundColor Cyan
+        } else {
+            Write-Host "Full changelog (no prior version stamp found):" -ForegroundColor Cyan
+        }
         Write-Host ""
         foreach ($l in $output) {
             Write-Host "  $l" -ForegroundColor DarkYellow
@@ -134,29 +138,24 @@ function Show-ChangelogSince([string]$fromVersion) {
     }
 }
 
-function Show-Diff([string]$srcFile, [string]$dstFile) {
-    if (-not (Test-Path $dstFile)) {
-        Write-Host "  [NEW FILE] $(Split-Path $srcFile -Leaf)" -ForegroundColor Yellow
-        return
-    }
-    $srcLines = Get-Content $srcFile
-    $dstLines = Get-Content $dstFile
-
-    $srcHash = ($srcLines | Out-String).GetHashCode()
-    $dstHash = ($dstLines | Out-String).GetHashCode()
-
-    if ($srcHash -eq $dstHash) {
-        Write-Host "  [IDENTICAL]" -ForegroundColor DarkGray
-        return
-    }
-
-    # Try git diff if available; fallback to simple line count diff
+function Show-DiffSummary([string]$srcFile, [string]$dstFile) {
     $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
     if ($gitAvailable) {
-        git diff --no-index --color=always $dstFile $srcFile 2>&1 | Select-Object -First 60 | ForEach-Object { Write-Host "  $_" }
+        $stat = git diff --no-index --shortstat $dstFile $srcFile 2>&1 | Select-Object -Last 1
+        Write-Host "  $($stat.Trim())" -ForegroundColor DarkYellow
     } else {
-        Write-Host "  Source: $($srcLines.Count) lines  |  Current: $($dstLines.Count) lines" -ForegroundColor DarkYellow
-        Write-Host "  (Install git for a proper diff view)"
+        $added   = (Get-Content $srcFile).Count
+        $removed = (Get-Content $dstFile).Count
+        Write-Host "  $added lines (new) vs $removed lines (current)" -ForegroundColor DarkYellow
+    }
+}
+
+function Show-DiffFull([string]$srcFile, [string]$dstFile) {
+    $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitAvailable) {
+        git diff --no-index --color=always $dstFile $srcFile 2>&1 | Select-Object -First 80 | ForEach-Object { Write-Host "  $_" }
+    } else {
+        Write-Host "  (Install git to see the full diff)" -ForegroundColor DarkGray
     }
 }
 
@@ -302,12 +301,18 @@ function Invoke-Update {
                 Write-Skip "Identical — skipping"
                 continue
             }
-            Show-Diff $srcFile.FullName $dstFile
+            Show-DiffSummary $srcFile.FullName $dstFile
         } else {
-            Write-Host "  [NEW FILE] Will be added." -ForegroundColor Yellow
+            Write-Host "  [NEW FILE]" -ForegroundColor Yellow
         }
 
-        $choice = Read-Host "  Accept (a), Reject (r), Skip (s)? [a/r/s]"
+        do {
+            $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
+            if ($choice.ToLower() -eq "d") {
+                Show-DiffFull $srcFile.FullName $dstFile
+            }
+        } while ($choice.ToLower() -eq "d")
+
         switch ($choice.ToLower()) {
             "a" {
                 New-Item -ItemType Directory -Force -Path (Split-Path $dstFile) | Out-Null

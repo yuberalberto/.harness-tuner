@@ -4,12 +4,29 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-05-18
+
+### Added
+- **`<!-- init-ai:hash -->` marker** in `.claude/CLAUDE.md` — tracks which template version was applied, replaces `.windsurf/.init-ai-template-hash`
+- **Project name defaults to current folder** — bootstrap no longer requires typing the name if the folder name matches
+- **Diff on demand** — updater shows a summary (+N lines) instead of the full diff; press `d` to see the full diff when needed
+- **`--update` double-dash support** — both `-update` and `--update` now work correctly
+
+### Changed
+- Bootstrap prompts `Project name [folder-name]:` — press Enter to accept, or type a different name
+- Bootstrap: if `.claude/CLAUDE.md` already exists with init-ai marker → skip; without marker → append `## Project Context` section only
+- Update: CLAUDE.md tracking now uses template hash marker instead of separate `.windsurf/.init-ai-template-hash` file
+- Changelog header when no version stamp found shows `Full changelog (no prior version stamp found)` instead of `Changes since v:`
+- Next steps after bootstrap trimmed to two lines — removed redundant `install.ps1` reminder
+
+### Removed
+- `.windsurf/.init-ai-template-hash` — superseded by the `<!-- init-ai:hash -->` marker in CLAUDE.md
+
 ## [0.4.0] — 2026-05-18
 
 ### Added
 - **`--help` flag**: `init-ai --help` shows all available commands and usage
-- **CLAUDE.md template change detection**: `--update` warns when the CLAUDE.md template has changed, shows the diff, and suggests manual review (cannot auto-merge due to project-specific edits)
-- Template hash stored in `.windsurf/.init-ai-template-hash` during bootstrap and update
+- **CLAUDE.md template change detection**: `--update` warns when the CLAUDE.md template has changed and suggests manual review
 
 ### Changed
 - `.windsurf/.init-ai-version` is now documented as a file to commit (so teammates know the installed version)

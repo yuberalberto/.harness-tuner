@@ -184,7 +184,11 @@ function Invoke-Bootstrap {
     $claudeMd   = Join-Path $claudeDir "CLAUDE.md"
     New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null
 
-    $projectName  = if ($ProjectName) { $ProjectName } else { Read-Host "Project name (for CLAUDE.md)" }
+    $defaultName  = Split-Path $TARGET -Leaf
+    $projectName  = if ($ProjectName) { $ProjectName } else {
+        $input = Read-Host "Project name [$defaultName]"
+        if ($input) { $input } else { $defaultName }
+    }
     $userLanguage = if ($Language)     { $Language }     else { Read-Host "User chat language (e.g. Spanish, English)" }
 
     $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw

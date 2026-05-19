@@ -201,8 +201,30 @@ function Invoke-Bootstrap {
     $compiled = $template -replace "{{PROJECT_NAME}}", $projectName
     $compiled = $compiled -replace "{{USER_LANGUAGE}}", $userLanguage
 
-    Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
-    Write-Ok "Generated .claude/CLAUDE.md"
+    if (Test-Path $claudeMd) {
+        Write-Host ""
+        Write-Warn ".claude/CLAUDE.md already exists."
+        Write-Host "  (a) Append template to the end" -ForegroundColor White
+        Write-Host "  (r) Replace with fresh template" -ForegroundColor White
+        Write-Host "  (s) Skip" -ForegroundColor White
+        $choice = Read-Host "  Choice [a/r/s]"
+        switch ($choice.ToLower()) {
+            "a" {
+                Add-Content -Path $claudeMd -Value "`n`n$compiled" -Encoding UTF8
+                Write-Ok "Appended to .claude/CLAUDE.md"
+            }
+            "r" {
+                Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
+                Write-Ok "Replaced .claude/CLAUDE.md"
+            }
+            default {
+                Write-Skip "Skipped .claude/CLAUDE.md"
+            }
+        }
+    } else {
+        Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
+        Write-Ok "Generated .claude/CLAUDE.md"
+    }
 
     # 5. Stamp version + template hash
     Write-VersionStamp
@@ -215,10 +237,8 @@ function Invoke-Bootstrap {
 
     Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
     Write-Host ""
-    Write-Host "  Next steps:" -ForegroundColor White
-    Write-Host "  1. Edit .claude/CLAUDE.md — fill in the PROJECT-SPECIFIC section at the bottom"
-    Write-Host "  2. Run install.ps1 (once per PC) to set up Claude Code skill shortcuts"
-    Write-Host "  3. Commit the scaffolding: git add .windsurf specs .gitignore .claude && git commit -m 'chore: init ai methodology'"
+    Write-Host "  1. Fill in .claude/CLAUDE.md (PROJECT-SPECIFIC section at the bottom)" -ForegroundColor White
+    Write-Host "  2. git add .windsurf specs .gitignore .claude && git commit -m 'chore: init ai'" -ForegroundColor White
     Write-Host ""
 }
 
@@ -311,27 +331,18 @@ function Invoke-Update {
         if ($storedTemplateHash -ne $currentTemplateHash) {
             Write-Host ""
             Write-Host "--- CLAUDE.md template ---" -ForegroundColor White
-            Write-Warn "The CLAUDE.md template has changed since your last update."
-            Write-Host "  Your .claude/CLAUDE.md may have project-specific edits, so it cannot be auto-merged." -ForegroundColor DarkYellow
-            Write-Host "  Review the template diff below and apply relevant changes manually." -ForegroundColor DarkYellow
+            Write-Warn "Template changed — update .claude/CLAUDE.md manually."
 
             if ($storedTemplateHash) {
-                # Show diff of the template itself
                 $gitAvailable = Get-Command git -ErrorAction SilentlyContinue
                 if ($gitAvailable) {
                     Write-Host ""
                     git diff --no-index --color=always $claudeMd $templateSrc 2>&1 | Select-Object -First 80 | ForEach-Object { Write-Host "  $_" }
                 }
-            } else {
-                Write-Host "  (No previous template hash found — first update since versioning was added)" -ForegroundColor DarkGray
             }
 
-            Write-Host ""
-            Write-Host "  Template location: $templateSrc" -ForegroundColor DarkGray
-
-            # Store hash so we don't warn again until next template change
+            Write-Host "  Template: $templateSrc" -ForegroundColor DarkGray
             Set-Content -Path $templateHashFile -Value $currentTemplateHash -Encoding UTF8
-            Write-Ok "Template hash stored for future comparisons"
         } else {
             Write-Skip "CLAUDE.md template unchanged"
         }

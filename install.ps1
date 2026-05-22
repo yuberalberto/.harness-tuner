@@ -1,11 +1,10 @@
 <#
 .SYNOPSIS
-    One-time PC setup: create Claude Code skill junctions for all init-ai workflows.
+    One-time PC setup: create Claude Code skill junctions for all init-ai skills.
 
 .DESCRIPTION
     Creates directory junctions in ~/.claude/skills/ pointing to:
-    - ~/init-ai/adapters/claude-code/skills/[workflow]/  (for workflow wrappers + init-ai meta)
-    - ~/init-ai/methodology/skills/[skill]/              (for SDD skills: create-spec, run-tests, validate-spec)
+    - ~/init-ai/claude-code/skills/[skill]/   (the init-ai skills in Claude Code native format)
 
     Run once per machine. Use --force to reinstall.
 
@@ -84,25 +83,11 @@ Write-Host "  Target: $CLAUDE_SKILLS"
 Write-Host ""
 
 # ---------------------------------------------------------------------------
-# Workflow skill wrappers (adapters/claude-code/skills/)
+# init-ai skills (claude-code/skills/)
 # ---------------------------------------------------------------------------
-$adapterSkills = Join-Path $INIT_AI_HOME "adapters\claude-code\skills"
-Get-ChildItem -Directory $adapterSkills | ForEach-Object {
+$claudeCodeSkills = Join-Path $INIT_AI_HOME "claude-code\skills"
+Get-ChildItem -Directory $claudeCodeSkills | ForEach-Object {
     New-Junction (Join-Path $CLAUDE_SKILLS $_.Name) $_.FullName
-}
-
-# ---------------------------------------------------------------------------
-# SDD skills (methodology/skills/) — create-spec, run-tests, validate-spec
-# ---------------------------------------------------------------------------
-$methodologySkills = Join-Path $INIT_AI_HOME "methodology\skills"
-Get-ChildItem -Directory $methodologySkills | ForEach-Object {
-    $linkPath = Join-Path $CLAUDE_SKILLS $_.Name
-    # Prefer adapter version if it exists; otherwise point to methodology directly
-    if (-not (Test-Path $linkPath)) {
-        New-Junction $linkPath $_.FullName
-    } else {
-        Write-Skip "Already linked: $($_.Name)"
-    }
 }
 
 # ---------------------------------------------------------------------------

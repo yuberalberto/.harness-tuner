@@ -30,13 +30,14 @@ Navigate to your project directory, then run:
 init-ai
 ```
 
-Prompts for project name (defaults to the current folder name) and chat language.
-Copies the methodology to `.windsurf/` and generates `.claude/CLAUDE.md`.
+Prompts for chat language, then deploys both agents into your project:
+`claude-code/` → `.claude/` and `cascade/` → `.windsurf/` (rules + skills).
+Your `CLAUDE.md` is never generated or touched.
 
-To skip the prompts:
+To skip the prompt:
 
 ```powershell
-init-ai -ProjectName "my-app" -Language "English"
+init-ai -Language "English"
 ```
 
 ### Step 3 — Update an existing project
@@ -58,9 +59,14 @@ The updater:
 - **Spec-Driven + Test-Driven Development** (SDD+TDD)
 - **Engram memory protocol** — persistent context across sessions
 - **Permission-based collaboration** — agents ask before acting
-- **14 workflows** covering the full development lifecycle
-- **3 SDD skills** for spec creation, validation, and test execution
-- **CLAUDE.md template** with critical rules inline + workflow references
+- **Per-agent native architecture** — each agent gets rules and skills in its own format,
+  no thin wrappers
+- **4 always-on rules** — `sdd-process`, `testing`, `identity`, `engram`
+- **9 skills** — `grill-with-docs`, `to-prd`, `to-issues`, `tdd-cycle`, `zoom-out`,
+  `improve-codebase-architecture`, `audit`, `review`, `git-flow`
+- **Local markdown issue tracking** — PRDs, issues, and an INDEX.md dependency graph
+  under `.scratch/<feature>/`
+- **Never touches CLAUDE.md** — everything ships via rules and skills
 
 ---
 
@@ -82,36 +88,33 @@ init-ai/
 ├── VERSION                   # Current framework version (semver)
 ├── CHANGELOG.md              # Release history
 │
-├── methodology/              # Source of truth (agent-agnostic)
-│   ├── rules/                # code-standards, sdd-process, security, testing
-│   ├── workflows/            # 15 development workflows
-│   └── skills/               # create-spec, run-tests, validate-spec
+├── claude-code/              # Claude Code native format → deployed to .claude/
+│   ├── rules/                # sdd-process, testing, identity, engram (always-on)
+│   └── skills/               # 9 skills, each a self-contained SKILL.md
 │
-├── adapters/
-│   ├── cascade/              # (empty — methodology/ is already Cascade format)
-│   └── claude-code/
-│       ├── CLAUDE.md.template
-│       └── skills/           # Thin wrappers: one per workflow + init-ai meta
-│
-└── templates/
-    └── specs/                # Empty specs/ directory seed
+└── cascade/                  # Cascade (Windsurf) native format → deployed to .windsurf/
+    ├── rules/                # same 4 rules with `trigger: always_on` frontmatter
+    └── skills/               # same 9 skills in Cascade format
 ```
 
 ---
 
 ## Methodology overview
 
-### New features → `/spec-to-code`
-Write a spec, get approval, implement each task via TDD, archive the spec.
+### New features → `/grill-with-docs` → `/to-prd` → `/to-issues`
+Grill the requirements, synthesize a PRD, then decompose it into vertical-slice issues
+with a dependency graph in `.scratch/<feature>/INDEX.md`.
 
-### Bug fixes → `/tdd-cycle`
-Red → Green → Refactor → Edge cases → Save observation.
+### Implementation → `/tdd-cycle`
+Vertical TDD: one test → one implementation → repeat. Includes a planning gate, Engram
+saves, and "Document in Spec" on completion.
 
-### Code quality → `/simplify`, `/review`
-Post-implementation cleanup and branch review (correctness, quality, security, coverage).
+### Architecture → `/zoom-out`, `/improve-codebase-architecture`
+Step back to evaluate design, then drive refactoring toward deeper modules.
 
-### Project health → `/audit`
-Pre-push audit: deps, linters, secrets, dangerous patterns, tests.
+### Code quality → `/review`, `/audit`
+Branch review (correctness, quality, security, coverage) and pre-push audit (deps,
+linters, secrets, dangerous patterns, tests).
 
-### Context continuity → `/handoff`, `/restore-context`
-Save and restore thematic context via Engram across sessions.
+### Git → `/git-flow`
+Semantic commit, push, optional PR.

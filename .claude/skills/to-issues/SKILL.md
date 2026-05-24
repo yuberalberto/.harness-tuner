@@ -2,7 +2,7 @@
 name: to-issues
 description: >
   Break a plan, spec, or PRD into independently-grabbable issues using tracer-bullet
-  vertical slices. Outputs to `.specs/<feature>/issues/` and generates `.specs/<feature>/INDEX.md`
+  vertical slices. Outputs to `.specs/<NNN>-<feature>/issues/` and generates `.specs/<NNN>-<feature>/INDEX.md`
   with dependency graph and status table.
 allowed-tools: Read Glob Grep Bash Write Edit
 effort: high
@@ -68,13 +68,23 @@ Iterate until the user approves the breakdown.
 
 ### 5. Publish Issues and Generate INDEX.md
 
-For each approved slice, create a markdown file in `.specs/<feature>/issues/`
-with the filename pattern: `<NN>-<slug>.md` where `<NN>` is a zero-padded
-sequence number and `<slug>` is the kebab-case slug of the issue title.
+First, determine the spec folder's `NNN` prefix:
+- List directories under `.specs/` that match the pattern `NNN-*` (three-digit
+  numeric prefix followed by a hyphen, e.g. `001-my-feature`)
+- Count them; the new spec's `NNN` = count + 1, zero-padded to 3 digits
+- If no numbered directories exist, `NNN = 001`
+
+Name the spec folder `.specs/<NNN>-<feature>/` where `<feature>` is the
+kebab-case slug of the feature name.
+
+For each approved slice, create a markdown file in `.specs/<NNN>-<feature>/issues/`
+with the filename pattern: `<NNN>-<NN>-<slug>.md` where `<NNN>` matches the
+spec folder prefix, `<NN>` is a zero-padded two-digit sequence number, and
+`<slug>` is the kebab-case slug of the issue title.
 
 Use the issue body template below.
 
-After all issues are published, generate `.specs/<feature>/INDEX.md` containing:
+After all issues are published, generate `.specs/<NNN>-<feature>/INDEX.md` containing:
 
 1. **Dependency Graph** — ASCII-art representation of issue dependencies
 2. **Status Table** — list all issues with status column (values: `ready`,
@@ -83,7 +93,7 @@ After all issues are published, generate `.specs/<feature>/INDEX.md` containing:
 #### Issue File Template
 
 ```
-# <NN> - <Issue Title>
+# <NNN>-<NN> - <Issue Title>
 
 ## What to Build
 
@@ -126,30 +136,30 @@ HITL or AFK
 
 ASCII representation of issue dependencies. Example:
 
-┌─────┐
-│ 01  │
-└─────┘
+┌──────────┐
+│ NNN-01   │
+└──────────┘
   │
-  ├─→ ┌─────┐
-  │   │ 02  │
-  │   └─────┘
+  ├─→ ┌──────────┐
+  │   │ NNN-02   │
+  │   └──────────┘
   │     │
-  │     └─→ ┌─────┐
-  │         │ 03  │
-  │         └─────┘
+  │     └─→ ┌──────────┐
+  │         │ NNN-03   │
+  │         └──────────┘
   │
-  └─→ ┌─────┐
-      │ 04  │
-      └─────┘
+  └─→ ┌──────────┐
+      │ NNN-04   │
+      └──────────┘
 
 ## Status Table
 
-| Issue | Title | Type | Status | Blocked By |
-|-------|-------|------|--------|-----------|
-| 01 | Initial setup | AFK | ready | - |
-| 02 | Core logic | AFK | blocked | 01 |
-| 03 | Integration | HITL | blocked | 02 |
-| 04 | UI component | AFK | blocked | 01 |
+| Issue  | Title | Type | Status | Blocked By |
+|--------|-------|------|--------|-----------|
+| NNN-01 | Initial setup | AFK | ready | - |
+| NNN-02 | Core logic | AFK | blocked | NNN-01 |
+| NNN-03 | Integration | HITL | blocked | NNN-02 |
+| NNN-04 | UI component | AFK | blocked | NNN-01 |
 ```
 
 ### 6. Confirm with User

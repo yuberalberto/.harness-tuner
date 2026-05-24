@@ -4,7 +4,7 @@
 # Usage:
 #   ht                   Show help
 #   ht init              Bootstrap current project
-#   ht update            Interactive diff/merge against templates/
+#   ht update            Interactive diff/merge against templates-claude/
 #   ht self-update       git pull inside $HARNESS_TUNER_HOME
 #   ht --version         Print framework version
 #   ht --changelog       Print CHANGELOG.md
@@ -71,7 +71,7 @@ function Show-Help([bool]$Detailed = $false) {
     Write-Host "USAGE:" -ForegroundColor White
     Write-Host "  ht                     Show this help summary"
     Write-Host "  ht init                Bootstrap current project (.claude/ setup)"
-    Write-Host "  ht update              Interactive diff/merge templates/ -> .claude/"
+    Write-Host "  ht update              Interactive diff/merge templates-claude/ -> .claude/"
     Write-Host "  ht self-update         git pull inside HARNESS_TUNER_HOME"
     Write-Host "  ht --version           Print framework version"
     Write-Host "  ht --changelog         Print CHANGELOG.md"
@@ -82,14 +82,14 @@ function Show-Help([bool]$Detailed = $false) {
         Write-Host "SUBCOMMAND DETAILS:" -ForegroundColor White
         Write-Host ""
         Write-Host "  init  [-Language <lang>]" -ForegroundColor White
-        Write-Host "      Copies templates/rules/, templates/skills/, templates/hooks/ to"
-        Write-Host "      .claude/ and merges templates/settings.json into .claude/settings.json."
+        Write-Host "      Copies templates-claude/rules/, templates-claude/skills/, templates-claude/hooks/ to"
+        Write-Host "      .claude/ and merges templates-claude/settings.json into .claude/settings.json."
         Write-Host "      Interpolates {{USER_LANGUAGE}} in identity.md."
         Write-Host "      Aborts if .claude/.harness-tuner-version already exists."
         Write-Host "      Prompts per-file if a foreign .claude/ (no version marker) is detected."
         Write-Host ""
         Write-Host "  update [--force]" -ForegroundColor White
-        Write-Host "      Compares templates/ with project .claude/ and shows summary table."
+        Write-Host "      Compares templates-claude/ with project .claude/ and shows summary table."
         Write-Host "      Prompts once: Apply all changes? [Y/n/review]."
         Write-Host "      Y/Enter applies all, n aborts, review enters per-file diff flow."
         Write-Host "      --force skips all prompts and applies all changes."
@@ -278,7 +278,7 @@ function Merge-SettingsJson([string]$SrcPath, [string]$DstPath) {
         $src = $srcRaw | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
-        Write-Warn "templates/settings.json is not valid JSON — skipping merge."
+        Write-Warn "templates-claude/settings.json is not valid JSON — skipping merge."
         return
     }
 
@@ -421,7 +421,7 @@ function Invoke-CollisionPrompt([string]$SrcFile, [string]$DstFile, [string]$Lab
 
 function Invoke-Bootstrap {
     $claudeDir    = Join-Path $TARGET ".claude"
-    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates"
+    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-claude"
 
     # Guard: already installed
     if (Test-Path $VERSION_STAMP) {
@@ -446,7 +446,7 @@ function Invoke-Bootstrap {
     }
 
     if (-not (Test-Path $templatesDir)) {
-        Write-Err "templates/ directory not found at: $templatesDir"
+        Write-Err "templates-claude/ directory not found at: $templatesDir"
         exit 1
     }
 
@@ -520,7 +520,7 @@ function Invoke-Bootstrap {
 function Invoke-BootstrapCascade {
     $windsurfDir   = Join-Path $TARGET ".windsurf"
     $templatesDir  = Join-Path $HARNESS_TUNER_HOME "templates-cascade"
-    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates\skills"
+    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
 
     # Guard: already installed
     if (Test-Path $VERSION_STAMP_CASCADE) {
@@ -550,7 +550,7 @@ function Invoke-BootstrapCascade {
     }
 
     if (-not (Test-Path $skillsDir)) {
-        Write-Err "templates/skills/ directory not found at: $skillsDir"
+        Write-Err "templates-claude/skills/ directory not found at: $skillsDir"
         exit 1
     }
 
@@ -765,7 +765,7 @@ function Invoke-Update {
     )
 
     $claudeDir    = Join-Path $TARGET ".claude"
-    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates"
+    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-claude"
 
     if (-not (Test-Path $claudeDir)) {
         Write-Err "Project not initialized (.claude/ not found). Run 'ht init' first."
@@ -970,7 +970,7 @@ function Invoke-UpdateCascade {
 
     $windsurfDir   = Join-Path $TARGET ".windsurf"
     $templatesDir  = Join-Path $HARNESS_TUNER_HOME "templates-cascade"
-    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates\skills"
+    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
 
     if (-not (Test-Path $windsurfDir)) {
         Write-Err "Project not initialized (.windsurf/ not found). Run 'ht init -Agent cascade' first."

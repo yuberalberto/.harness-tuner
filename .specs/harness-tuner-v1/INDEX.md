@@ -50,7 +50,7 @@ Independent (ready from day 0):
 | 15 | Docs: 3 ADRs | HITL | `done` | — |
 | 16 | README rewrite | AFK | `done` | 13 ✓, 14 ✓ |
 | 17 | CHANGELOG v1.0.0 entry | AFK | `done` | most ✓ |
-| 18 | Dogfooding + acceptance verification | HITL | `ready` | all ✓ |
+| 18 | Dogfooding + acceptance verification | HITL | `done` | all ✓ |
 
 ## Status Legend
 

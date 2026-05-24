@@ -31,7 +31,7 @@ $ErrorActionPreference = "Stop"
 
 $HARNESS_TUNER_HOME = $PSScriptRoot
 $TARGET             = (Get-Location).Path
-$VERSION_STAMP      = Join-Path $TARGET ".claude" ".harness-tuner-version"
+$VERSION_STAMP      = Join-Path (Join-Path $TARGET ".claude") ".harness-tuner-version"
 
 function Get-FrameworkVersion {
     $vFile = Join-Path $HARNESS_TUNER_HOME "VERSION"

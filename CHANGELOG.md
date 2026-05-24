@@ -18,7 +18,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - **5-layer harness model**: philosophy.md documents the conceptual framework (Identity, Memory, Process, Tools, Guardrails).
 - **`templates/hooks/`**: 4 lifecycle hooks — `engram-session-start`, `engram-session-end`, `format-post-edit`, `git-guardrails-pre-bash`.
-- **MCP declarations**: `engram` and `context7` declared in `templates/settings.json`.
+- **MCP declarations**: `engram` declared in `templates/settings.json`.
 - **3 new skills**: `grill-me`, `code-standards`, `inspect-harness`.
 - **`get.ps1`**: one-liner installer (`irm https://... | iex`).
 - **`ht self-update`** subcommand: updates the harness from the remote repo.

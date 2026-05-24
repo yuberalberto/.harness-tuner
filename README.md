@@ -64,7 +64,6 @@ This deploys all five harness layers into `.claude/`. Run `ht --help` to see all
 
 **MCP servers** — declared in `.claude/settings.json`, merged non-destructively on init:
 - `engram` (required) — cross-session memory via `mem_*` tools
-- `context7` (recommended) — up-to-date library documentation lookup
 
 Server binaries are the user's responsibility (treat like git or node).
 

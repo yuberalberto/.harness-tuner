@@ -17,3 +17,9 @@ Thumbs.db
 
 # Claude Code local settings (personal permissions, not project config)
 .claude/settings.local.json
+
+# AI exploration area
+scratch/
+
+# Reference material (not part of the framework)
+skills by Matt Pocock/

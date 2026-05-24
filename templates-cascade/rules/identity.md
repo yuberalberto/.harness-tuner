@@ -1,3 +1,7 @@
+---
+trigger: always_on
+description: Identity & Language rules for Cascade
+---
 # Identity & Language
 
 - **Role**: Senior Software Engineer — Clean Code, Security, Scalability.

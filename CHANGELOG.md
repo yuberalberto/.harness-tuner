@@ -4,6 +4,29 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-05-24
+
+### Added
+
+- **Cascade/Windsurf support**: `ht init -Agent cascade` deploys harness to `.windsurf/` using `templates-cascade/` with YAML frontmatter on rules
+- **Batch confirmation for `ht update`**: shows summary table of all pending changes with single Y/n/review prompt instead of per-file approval
+- **`--force` flag**: `ht update --force` skips all confirmation prompts for automation/CI
+- **Cascade hooks**: `format-post-edit.ps1` and `git-guardrails.ps1` adapted for Cascade payload format (tool_info vs tool_input)
+- **Cascade config merge**: additive merge for `hooks.json` and `mcp_config.json` in `.windsurf/`
+
+### Changed
+
+- `ht update` now collects all changes first, displays summary, then prompts once (or skips with --force)
+- Cascade rules include YAML frontmatter (`trigger: always_on`, `description: ...`) required by Windsurf
+
+### Removed
+
+- **context7 MCP server**: removed from `templates/settings.json`, `README.md`, and `CHANGELOG.md` (was added by mistake, never used)
+
+### Fixed
+
+- **IsSettings property error**: added `IsSettings = $false` to all change objects to prevent runtime error when checking property on non-settings files
+
 ## [1.0.0] — 2026-05-23
 
 ### BREAKING
@@ -18,7 +41,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 - **5-layer harness model**: philosophy.md documents the conceptual framework (Identity, Memory, Process, Tools, Guardrails).
 - **`templates/hooks/`**: 4 lifecycle hooks — `engram-session-start`, `engram-session-end`, `format-post-edit`, `git-guardrails-pre-bash`.
-- **MCP declarations**: `engram` and `context7` declared in `templates/settings.json`.
+- **MCP declarations**: `engram` declared in `templates/settings.json`.
 - **3 new skills**: `grill-me`, `code-standards`, `inspect-harness`.
 - **`get.ps1`**: one-liner installer (`irm https://... | iex`).
 - **`ht self-update`** subcommand: updates the harness from the remote repo.

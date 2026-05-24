@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "post_write_code": [
+      { "powershell": "pwsh -File .windsurf/hooks/format-post-edit.ps1", "show_output": false }
+    ],
+    "pre_run_command": [
+      { "powershell": "pwsh -File .windsurf/hooks/git-guardrails.ps1", "show_output": true }
+    ]
+  }
+}

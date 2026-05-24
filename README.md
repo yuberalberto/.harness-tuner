@@ -33,6 +33,14 @@ ht init
 
 This deploys all five harness layers into `.claude/`. Run `ht --help` to see all subcommands.
 
+**For Cascade (Windsurf):**
+
+```powershell
+ht init -Agent cascade
+```
+
+This deploys harness layers into `.windsurf/` with Cascade-specific configurations.
+
 ## What you get
 
 `ht init` copies a curated set of files into your project's `.claude/`:
@@ -75,6 +83,18 @@ Update the current project against the latest templates:
 ht update
 ```
 
+**For Cascade (Windsurf):**
+
+```powershell
+ht update -Agent cascade
+```
+
+Use `--force` to skip the confirmation prompt:
+
+```powershell
+ht update -Agent cascade --force
+```
+
 Pull the latest framework version to your local clone:
 
 ```powershell
@@ -87,7 +107,15 @@ Claude Code exposes five distinct extension points. Most projects use one or two
 
 ## Supported agents
 
-**Claude Code only.** Wrappers for other agents (Cursor, Windsurf, Antigravity) may come in a later release.
+**Claude Code** — deploys to `.claude/` with full hook support including session hooks.
+
+**Cascade (Windsurf)** — deploys to `.windsurf/` with the following layer mappings:
+- Rules → `.windsurf/rules/`
+- Skills → `.windsurf/skills/`
+- Hooks → `.windsurf/hooks.json`
+- MCP → global `mcp_config.json` (merged non-destructively)
+
+**Note:** Session hooks (`engram-session-start`, `engram-session-end`) are not available in Cascade due to platform limitations.
 
 ## License
 

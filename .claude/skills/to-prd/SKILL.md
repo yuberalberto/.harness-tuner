@@ -107,3 +107,12 @@ modules, user stories, and decisions align with their intent.
 
 Create `.specs/<feature>/` if needed, then write `.specs/<feature>/PRD.md`
 with the approved PRD.
+
+**Folder naming convention** — use a verb-first slug that describes the action:
+- `add-<what>` — new feature or capability
+- `fix-<what>` — bug fix or UX improvement
+- `remove-<what>` — deletion or cleanup
+- `refactor-<what>` — structural change without behavior change
+- `improve-<what>` — enhancement to existing behavior
+
+Examples: `add-cascade-support`, `fix-update-prompts`, `remove-context7`

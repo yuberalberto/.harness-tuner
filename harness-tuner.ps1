@@ -16,10 +16,12 @@ param(
     [string]$Command = "",
 
     [string]$Language = "",
+    [string]$Agent = "claude-code",
 
     [switch]$Version,
     [switch]$Changelog,
-    [switch]$Help
+    [switch]$Help,
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -32,6 +34,7 @@ $ErrorActionPreference = "Stop"
 $HARNESS_TUNER_HOME = $PSScriptRoot
 $TARGET             = (Get-Location).Path
 $VERSION_STAMP      = Join-Path (Join-Path $TARGET ".claude") ".harness-tuner-version"
+$VERSION_STAMP_CASCADE = Join-Path (Join-Path $TARGET ".windsurf") ".harness-tuner-version"
 
 function Get-FrameworkVersion {
     $vFile = Join-Path $HARNESS_TUNER_HOME "VERSION"
@@ -85,9 +88,11 @@ function Show-Help([bool]$Detailed = $false) {
         Write-Host "      Aborts if .claude/.harness-tuner-version already exists."
         Write-Host "      Prompts per-file if a foreign .claude/ (no version marker) is detected."
         Write-Host ""
-        Write-Host "  update" -ForegroundColor White
-        Write-Host "      For each file under templates/, compares with the project counterpart."
-        Write-Host "      Shows diff. Prompts: Accept (a) / Reject (r) / Skip (s) / Diff (d)."
+        Write-Host "  update [--force]" -ForegroundColor White
+        Write-Host "      Compares templates/ with project .claude/ and shows summary table."
+        Write-Host "      Prompts once: Apply all changes? [Y/n/review]."
+        Write-Host "      Y/Enter applies all, n aborts, review enters per-file diff flow."
+        Write-Host "      --force skips all prompts and applies all changes."
         Write-Host "      Stamps .harness-tuner-version if any accepts were made."
         Write-Host ""
         Write-Host "  self-update" -ForegroundColor White
@@ -147,6 +152,117 @@ function Show-DiffFull([string]$SrcFile, [string]$DstFile) {
     else {
         Write-Host "  (Install git to see the full diff)" -ForegroundColor DarkGray
     }
+}
+
+# ---------------------------------------------------------------------------
+# Utility: hooks.json additive merge (Cascade)
+# ---------------------------------------------------------------------------
+
+function Merge-HooksJson([string]$SrcPath, [string]$DstPath) {
+    if (-not (Test-Path $SrcPath)) { return }
+
+    $srcRaw = Get-Content $SrcPath -Raw -Encoding UTF8
+    try {
+        $src = $srcRaw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        Write-Warn "Source hooks.json is not valid JSON — skipping merge."
+        return
+    }
+
+    if (Test-Path $DstPath) {
+        $dstRaw = Get-Content $DstPath -Raw -Encoding UTF8
+        try {
+            $dst = $dstRaw | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            Write-Warn "Destination hooks.json is not valid JSON — creating backup and replacing."
+            Copy-Item $DstPath "$DstPath.bak" -Force
+            $dst = [PSCustomObject]@{}
+        }
+    }
+    else {
+        $dst = [PSCustomObject]@{}
+    }
+
+    if ($src.PSObject.Properties['hooks']) {
+        if (-not $dst.PSObject.Properties['hooks']) {
+            $dst | Add-Member -MemberType NoteProperty -Name hooks -Value ([PSCustomObject]@{})
+        }
+
+        foreach ($eventProp in $src.hooks.PSObject.Properties) {
+            if (-not $dst.hooks.PSObject.Properties[$eventProp.Name]) {
+                $dst.hooks | Add-Member -MemberType NoteProperty -Name $eventProp.Name -Value @()
+            }
+
+            foreach ($handler in $src.hooks.($eventProp.Name)) {
+                if ($handler -notin $dst.hooks.($eventProp.Name)) {
+                    $dst.hooks.($eventProp.Name) += $handler
+                }
+            }
+        }
+    }
+
+    $dir = Split-Path $DstPath
+    if ($dir) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+    $dst | ConvertTo-Json -Depth 10 | Set-Content -Path $DstPath -Encoding UTF8
+    Write-Ok "Merged hooks.json"
+}
+
+# ---------------------------------------------------------------------------
+# Utility: mcp_config.json additive merge (Cascade)
+# ---------------------------------------------------------------------------
+
+function Merge-McpConfigJson([string]$SrcPath, [string]$DstPath) {
+    if (-not (Test-Path $SrcPath)) { return }
+
+    $srcRaw = Get-Content $SrcPath -Raw -Encoding UTF8
+    try {
+        $src = $srcRaw | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch {
+        Write-Warn "Source mcp_config.json is not valid JSON — skipping merge."
+        return
+    }
+
+    if (Test-Path $DstPath) {
+        $dstRaw = Get-Content $DstPath -Raw -Encoding UTF8
+        try {
+            $dst = $dstRaw | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            Write-Warn "Destination mcp_config.json is not valid JSON — creating backup and replacing."
+            Copy-Item $DstPath "$DstPath.bak" -Force
+            $dst = [PSCustomObject]@{}
+        }
+    }
+    else {
+        $dst = [PSCustomObject]@{}
+    }
+
+    if ($src.PSObject.Properties['mcpServers']) {
+        if (-not $dst.PSObject.Properties['mcpServers']) {
+            $dst | Add-Member -MemberType NoteProperty -Name mcpServers -Value ([PSCustomObject]@{})
+        }
+
+        foreach ($prop in $src.mcpServers.PSObject.Properties) {
+            if ($dst.mcpServers.PSObject.Properties[$prop.Name]) {
+                Write-Warn "MCP server '$($prop.Name)' already declared — skipping."
+            }
+            else {
+                $dst.mcpServers | Add-Member -MemberType NoteProperty -Name $prop.Name -Value $prop.Value
+            }
+        }
+    }
+
+    $dir = Split-Path $DstPath
+    if ($dir) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
+    $dst | ConvertTo-Json -Depth 10 | Set-Content -Path $DstPath -Encoding UTF8
+    Write-Ok "Merged mcp_config.json"
 }
 
 # ---------------------------------------------------------------------------
@@ -398,10 +514,256 @@ function Invoke-Bootstrap {
 }
 
 # ---------------------------------------------------------------------------
+# Subcommand: init (Cascade)
+# ---------------------------------------------------------------------------
+
+function Invoke-BootstrapCascade {
+    $windsurfDir   = Join-Path $TARGET ".windsurf"
+    $templatesDir  = Join-Path $HARNESS_TUNER_HOME "templates-cascade"
+    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates\skills"
+
+    # Guard: already installed
+    if (Test-Path $VERSION_STAMP_CASCADE) {
+        Write-Err "Already installed (v$(Get-Content $VERSION_STAMP_CASCADE -Raw).Trim())."
+        Write-Host "  Run 'ht update' to apply template changes." -ForegroundColor Yellow
+        exit 1
+    }
+
+    $isForeign = (Test-Path $windsurfDir) -and (-not (Test-Path $VERSION_STAMP_CASCADE))
+
+    if ($isForeign) {
+        Write-Warn "Foreign .windsurf/ detected (no harness-tuner marker)."
+        Write-Host "  Files that collide with templates will require your approval." -ForegroundColor Yellow
+    }
+
+    Write-Header "Bootstrapping $TARGET for Cascade"
+
+    # Resolve user language
+    $userLanguage = $Language
+    if (-not $userLanguage) {
+        $userLanguage = Read-Host "User chat language (e.g. Spanish, English)"
+    }
+
+    if (-not (Test-Path $templatesDir)) {
+        Write-Err "templates-cascade/ directory not found at: $templatesDir"
+        exit 1
+    }
+
+    if (-not (Test-Path $skillsDir)) {
+        Write-Err "templates/skills/ directory not found at: $skillsDir"
+        exit 1
+    }
+
+    $anyAccepted  = $true
+    $collisions   = 0
+
+    # Copy rules from templates-cascade/rules/
+    $rulesSrc = Join-Path $templatesDir "rules"
+    if (Test-Path $rulesSrc) {
+        $ruleFiles = Get-ChildItem -Recurse -File $rulesSrc
+        foreach ($srcItem in $ruleFiles) {
+            $rel     = $srcItem.FullName.Substring($rulesSrc.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $windsurfDir "rules\$rel"
+
+            if ($isForeign -and (Test-Path $dstFile)) {
+                $collisions++
+                $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile "rules/$rel"
+                if ($accepted) {
+                    Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+                }
+                else {
+                    Write-Skip "Rejected: rules/$rel"
+                    $anyAccepted = $false
+                }
+            }
+            else {
+                Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+            }
+        }
+    }
+
+    # Copy skills from templates/skills/
+    if (Test-Path $skillsDir) {
+        $skillDirs = Get-ChildItem -Directory $skillsDir
+        foreach ($skillDir in $skillDirs) {
+            $skillSrc = $skillDir.FullName
+            $skillDst = Join-Path $windsurfDir "skills\$($skillDir.Name)"
+
+            $skillFiles = Get-ChildItem -Recurse -File $skillSrc
+            foreach ($srcItem in $skillFiles) {
+                $rel     = $srcItem.FullName.Substring($skillSrc.Length).TrimStart('\', '/')
+                $dstFile = Join-Path $skillDst $rel
+
+                if ($isForeign -and (Test-Path $dstFile)) {
+                    $collisions++
+                    $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile "skills/$($skillDir.Name)/$rel"
+                    if ($accepted) {
+                        Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+                    }
+                    else {
+                        Write-Skip "Rejected: skills/$($skillDir.Name)/$rel"
+                        $anyAccepted = $false
+                    }
+                }
+                else {
+                    Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+                }
+            }
+        }
+    }
+
+    # Copy hooks from templates-cascade/hooks/
+    $hooksSrc = Join-Path $templatesDir "hooks"
+    if (Test-Path $hooksSrc) {
+        $hookFiles = Get-ChildItem -Recurse -File $hooksSrc
+        foreach ($srcItem in $hookFiles) {
+            $rel     = $srcItem.FullName.Substring($hooksSrc.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $windsurfDir "hooks\$rel"
+
+            # Ensure directory exists
+            New-Item -ItemType Directory -Force -Path (Split-Path $dstFile) | Out-Null
+
+            if ($isForeign -and (Test-Path $dstFile)) {
+                $collisions++
+                $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile "hooks/$rel"
+                if ($accepted) {
+                    Copy-Item -Force $srcItem.FullName $dstFile
+                    Write-Ok "Copied hooks/$rel"
+                }
+                else {
+                    Write-Skip "Rejected: hooks/$rel"
+                    $anyAccepted = $false
+                }
+            }
+            else {
+                Copy-Item -Force $srcItem.FullName $dstFile
+                Write-Ok "Copied hooks/$rel"
+            }
+        }
+    }
+
+    # Merge hooks.json
+    $srcHooks = Join-Path $templatesDir "hooks.json"
+    $dstHooks = Join-Path $windsurfDir "hooks.json"
+
+    if ($isForeign -and (Test-Path $dstHooks)) {
+        $collisions++
+        $acceptHooks = Invoke-CollisionPrompt $srcHooks $dstHooks "hooks.json (will be merged)"
+        if ($acceptHooks) {
+            Merge-HooksJson $srcHooks $dstHooks
+        }
+        else {
+            Write-Skip "Rejected: hooks.json"
+        }
+    }
+    elseif (Test-Path $srcHooks) {
+        Merge-HooksJson $srcHooks $dstHooks
+    }
+
+    # Merge mcp_config.json (add engram entry)
+    $codeiumDir = Join-Path $env:USERPROFILE ".codeium"
+    $windsurfConfigDir = Join-Path $codeiumDir "windsurf"
+    $srcMcp = Join-Path $templatesDir "mcp_config.json"
+    $dstMcp = Join-Path $windsurfConfigDir "mcp_config.json"
+
+    if (Test-Path $srcMcp) {
+        if ($isForeign -and (Test-Path $dstMcp)) {
+            $collisions++
+            $acceptMcp = Invoke-CollisionPrompt $srcMcp $dstMcp "mcp_config.json (will be merged)"
+            if ($acceptMcp) {
+                Merge-McpConfigJson $srcMcp $dstMcp
+            }
+            else {
+                Write-Skip "Rejected: mcp_config.json"
+            }
+        }
+        else {
+            Merge-McpConfigJson $srcMcp $dstMcp
+        }
+    }
+
+    # Stamp version
+    $dir = Split-Path $VERSION_STAMP_CASCADE
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    Set-Content -Path $VERSION_STAMP_CASCADE -Value $FRAMEWORK_VERSION -Encoding UTF8
+    Write-Ok "Stamped version $FRAMEWORK_VERSION"
+
+    if ($isForeign) {
+        Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION) — $collisions collision(s) reviewed"
+    }
+    else {
+        Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
+    }
+
+    Write-Host ""
+    Write-Host "  Suggested next step:" -ForegroundColor White
+    Write-Host "  git add .windsurf && git commit -m 'chore: init harness-tuner for Cascade'" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
 # Subcommand: update
 # ---------------------------------------------------------------------------
 
+function Get-ChangeSummary {
+    param(
+        [string]$SrcFile,
+        [string]$DstFile
+    )
+
+    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
+    if ($gitCmd) {
+        $stat = git diff --no-index --shortstat $DstFile $SrcFile 2>&1 | Select-Object -Last 1
+        if ($stat) {
+            # Parse "1 file changed, 3 insertions(+), 2 deletions(-)"
+            if ($stat -match "(\d+) insertion") {
+                $added = [int]$matches[1]
+            } else {
+                $added = 0
+            }
+            if ($stat -match "(\d+) deletion") {
+                $removed = [int]$matches[1]
+            } else {
+                $removed = 0
+            }
+            return @{ Added = $added; Removed = $removed }
+        }
+    }
+
+    # Fallback: count lines
+    $srcLines = (Get-Content $SrcFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+    $dstLines = (Get-Content $DstFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+    $added = [math]::Max(0, $srcLines - $dstLines)
+    $removed = [math]::Max(0, $dstLines - $srcLines)
+    return @{ Added = $added; Removed = $removed }
+}
+
+function Show-ChangeSummaryTable {
+    param(
+        [array]$Changes
+    )
+
+    if ($Changes.Count -eq 0) {
+        Write-Host "  No changes detected." -ForegroundColor Green
+        return
+    }
+
+    Write-Host ""
+    Write-Host "  File                          Action    +lines  -lines" -ForegroundColor White
+    Write-Host "  ─────────────────────────────────────────────────────" -ForegroundColor DarkGray
+
+    foreach ($change in $Changes) {
+        $fileDisplay = if ($change.File.Length -gt 30) { $change.File.Substring(0, 27) + "..." } else { $change.File }
+        Write-Host ("  {0,-30} {1,-9} {2,7}  {3,7}" -f $fileDisplay, $change.Action, $change.Added, $change.Removed)
+    }
+    Write-Host ""
+}
+
 function Invoke-Update {
+    param(
+        [switch]$Force
+    )
+
     $claudeDir    = Join-Path $TARGET ".claude"
     $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates"
 
@@ -421,10 +783,8 @@ function Invoke-Update {
 
     Write-Header "Updating $TARGET"
 
-    $accepted = 0
-    $rejected = 0
-    $skipped  = 0
-
+    # Phase 1: Collect all pending changes silently
+    $pendingChanges = @()
     $templateFiles = Get-ChildItem -Recurse -File $templatesDir |
         Where-Object { $_.Name -ne "settings.json" }
 
@@ -432,69 +792,467 @@ function Invoke-Update {
         $rel     = $srcItem.FullName.Substring($templatesDir.Length).TrimStart('\', '/')
         $dstFile = Join-Path $claudeDir $rel
 
-        Write-Host ""
-        Write-Host "--- $rel ---" -ForegroundColor White
-
         if (Test-Path $dstFile) {
             $srcHash = (Get-FileHash $srcItem.FullName -Algorithm MD5).Hash
             $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
             if ($srcHash -eq $dstHash) {
-                Write-Skip "Identical — skipping"
-                continue
+                continue  # Identical, skip
             }
-            Show-DiffSummary $srcItem.FullName $dstFile
+            $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+            $pendingChanges += @{
+                File = $rel
+                Action = "update"
+                Added = $summary.Added
+                Removed = $summary.Removed
+                SrcFile = $srcItem.FullName
+                DstFile = $dstFile
+                IsSettings = $false
+            }
         }
         else {
-            Write-Host "  [NEW FILE]" -ForegroundColor Yellow
-        }
-
-        do {
-            $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
-            if ($choice -eq "d" -or $choice -eq "D") {
-                Show-DiffFull $srcItem.FullName $dstFile
-            }
-        } while ($choice -eq "d" -or $choice -eq "D")
-
-        switch ($choice.ToLower()) {
-            "a" {
-                New-Item -ItemType Directory -Force -Path (Split-Path $dstFile) | Out-Null
-                Copy-Item -Force $srcItem.FullName $dstFile
-                Write-Ok "Accepted: $rel"
-                $accepted++
-            }
-            "r" {
-                Write-Err "Rejected: $rel"
-                $rejected++
-            }
-            default {
-                Write-Skip "Skipped: $rel"
-                $skipped++
+            $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+            $pendingChanges += @{
+                File = $rel
+                Action = "new"
+                Added = $srcLines
+                Removed = 0
+                SrcFile = $srcItem.FullName
+                DstFile = $dstFile
+                IsSettings = $false
             }
         }
     }
 
-    # Handle settings.json separately
+    # Check settings.json separately
     $srcSettings = Join-Path $templatesDir "settings.json"
     $dstSettings = Join-Path $claudeDir "settings.json"
     if (Test-Path $srcSettings) {
-        Write-Host ""
-        Write-Host "--- settings.json (additive merge) ---" -ForegroundColor White
-        do {
-            $choice = Read-Host "  Merge template settings.json into project? Accept (a), Skip (s)? [a/s]"
-        } while ($choice -ne "a" -and $choice -ne "A" -and $choice -ne "s" -and $choice -ne "S")
-
-        if ($choice -eq "a" -or $choice -eq "A") {
-            Merge-SettingsJson $srcSettings $dstSettings
-            $accepted++
+        $pendingChanges += @{
+            File = "settings.json"
+            Action = "merge"
+            Added = 0
+            Removed = 0
+            SrcFile = $srcSettings
+            DstFile = $dstSettings
+            IsSettings = $true
         }
-        else {
-            Write-Skip "Skipped: settings.json"
-            $skipped++
+    }
+
+    # Phase 2: Display summary table
+    Show-ChangeSummaryTable $pendingChanges
+
+    if ($pendingChanges.Count -eq 0) {
+        Write-Ok "No changes to apply."
+        return
+    }
+
+    # Phase 3: Single confirmation prompt (unless --force)
+    $applyAll = $false
+    if ($Force) {
+        $applyAll = $true
+    }
+    else {
+        do {
+            $choice = Read-Host "  Apply all changes? [Y/n/review]"
+            $choice = $choice.Trim().ToLower()
+        } while ($choice -notin @("", "y", "n", "review"))
+
+        switch ($choice) {
+            "" { $applyAll = $true }  # Enter = Y
+            "y" { $applyAll = $true }
+            "n" {
+                Write-Host "  Aborted — no changes applied." -ForegroundColor Yellow
+                return
+            }
+            "review" {
+                # Fall through to per-file review flow
+                $applyAll = $false
+            }
+        }
+    }
+
+    $accepted = 0
+    $rejected = 0
+    $skipped  = 0
+
+    # Phase 4: Apply changes
+    if ($applyAll) {
+        # Apply all changes without further prompts
+        foreach ($change in $pendingChanges) {
+            if ($change.IsSettings) {
+                Merge-SettingsJson $change.SrcFile $change.DstFile
+                Write-Ok "Merged: settings.json"
+                $accepted++
+            }
+            else {
+                New-Item -ItemType Directory -Force -Path (Split-Path $change.DstFile) | Out-Null
+                Copy-Item -Force $change.SrcFile $change.DstFile
+                Write-Ok "Accepted: $($change.File)"
+                $accepted++
+            }
+        }
+    }
+    else {
+        # Per-file review flow (existing behavior)
+        foreach ($change in $pendingChanges) {
+            if ($change.IsSettings) {
+                Write-Host ""
+                Write-Host "--- settings.json (additive merge) ---" -ForegroundColor White
+                do {
+                    $choice = Read-Host "  Merge template settings.json into project? Accept (a), Skip (s)? [a/s]"
+                } while ($choice -ne "a" -and $choice -ne "A" -and $choice -ne "s" -and $choice -ne "S")
+
+                if ($choice -eq "a" -or $choice -eq "A") {
+                    Merge-SettingsJson $change.SrcFile $change.DstFile
+                    Write-Ok "Merged: settings.json"
+                    $accepted++
+                }
+                else {
+                    Write-Skip "Skipped: settings.json"
+                    $skipped++
+                }
+            }
+            else {
+                Write-Host ""
+                Write-Host "--- $($change.File) ---" -ForegroundColor White
+                if ($change.Action -eq "update") {
+                    Show-DiffSummary $change.SrcFile $change.DstFile
+                }
+                else {
+                    Write-Host "  [NEW FILE]" -ForegroundColor Yellow
+                }
+
+                do {
+                    $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
+                    if ($choice -eq "d" -or $choice -eq "D") {
+                        Show-DiffFull $change.SrcFile $change.DstFile
+                    }
+                } while ($choice -eq "d" -or $choice -eq "D")
+
+                switch ($choice.ToLower()) {
+                    "a" {
+                        New-Item -ItemType Directory -Force -Path (Split-Path $change.DstFile) | Out-Null
+                        Copy-Item -Force $change.SrcFile $change.DstFile
+                        Write-Ok "Accepted: $($change.File)"
+                        $accepted++
+                    }
+                    "r" {
+                        Write-Err "Rejected: $($change.File)"
+                        $rejected++
+                    }
+                    default {
+                        Write-Skip "Skipped: $($change.File)"
+                        $skipped++
+                    }
+                }
+            }
         }
     }
 
     if ($accepted -gt 0) {
         Write-VersionStamp
+        Write-Ok "Stamped version $FRAMEWORK_VERSION"
+    }
+
+    Write-Header "Update complete (v$FRAMEWORK_VERSION)"
+    Write-Host "  Accepted: $accepted  |  Rejected: $rejected  |  Skipped: $skipped"
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: update (Cascade)
+# ---------------------------------------------------------------------------
+
+function Invoke-UpdateCascade {
+    param(
+        [switch]$Force
+    )
+
+    $windsurfDir   = Join-Path $TARGET ".windsurf"
+    $templatesDir  = Join-Path $HARNESS_TUNER_HOME "templates-cascade"
+    $skillsDir     = Join-Path $HARNESS_TUNER_HOME "templates\skills"
+
+    if (-not (Test-Path $windsurfDir)) {
+        Write-Err "Project not initialized (.windsurf/ not found). Run 'ht init -Agent cascade' first."
+        exit 1
+    }
+
+    if (Test-Path $VERSION_STAMP_CASCADE) {
+        $projectVersion = (Get-Content $VERSION_STAMP_CASCADE -Raw).Trim()
+    }
+    else {
+        $projectVersion = $null
+    }
+    if ($projectVersion) {
+        Write-Host "  Project version : v$projectVersion" -ForegroundColor White
+    }
+    else {
+        Write-Warn "No version stamp found. Project may have been bootstrapped before harness-tuner."
+    }
+    Write-Host "  Framework version: v$FRAMEWORK_VERSION" -ForegroundColor White
+
+    Write-Header "Updating $TARGET for Cascade"
+
+    # Phase 1: Collect all pending changes silently
+    $pendingChanges = @()
+
+    # Collect skills from templates/skills/
+    if (Test-Path $skillsDir) {
+        $skillDirs = Get-ChildItem -Directory $skillsDir
+        foreach ($skillDir in $skillDirs) {
+            $skillSrc = $skillDir.FullName
+            $skillDst = Join-Path $windsurfDir "skills\$($skillDir.Name)"
+
+            $skillFiles = Get-ChildItem -Recurse -File $skillSrc
+            foreach ($srcItem in $skillFiles) {
+                $rel     = $srcItem.FullName.Substring($skillSrc.Length).TrimStart('\', '/')
+                $dstFile = Join-Path $skillDst $rel
+
+                if (Test-Path $dstFile) {
+                    $srcHash = (Get-FileHash $srcItem.FullName -Algorithm MD5).Hash
+                    $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
+                    if ($srcHash -eq $dstHash) {
+                        continue  # Identical, skip
+                    }
+                    $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                    $pendingChanges += @{
+                        File = "skills/$($skillDir.Name)/$rel"
+                        Action = "update"
+                        Added = $summary.Added
+                        Removed = $summary.Removed
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsSettings = $false
+                    }
+                }
+                else {
+                    $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                    $pendingChanges += @{
+                        File = "skills/$($skillDir.Name)/$rel"
+                        Action = "new"
+                        Added = $srcLines
+                        Removed = 0
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsSettings = $false
+                    }
+                }
+            }
+        }
+    }
+
+    # Collect rules from templates-cascade/rules/
+    if (Test-Path $templatesDir) {
+        $rulesSrc = Join-Path $templatesDir "rules"
+        if (Test-Path $rulesSrc) {
+            $ruleFiles = Get-ChildItem -Recurse -File $rulesSrc
+            foreach ($srcItem in $ruleFiles) {
+                $rel     = $srcItem.FullName.Substring($rulesSrc.Length).TrimStart('\', '/')
+                $dstFile = Join-Path $windsurfDir "rules\$rel"
+
+                if (Test-Path $dstFile) {
+                    $srcHash = (Get-FileHash $srcItem.FullName -Algorithm MD5).Hash
+                    $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
+                    if ($srcHash -eq $dstHash) {
+                        continue  # Identical, skip
+                    }
+                    $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                    $pendingChanges += @{
+                        File = "rules/$rel"
+                        Action = "update"
+                        Added = $summary.Added
+                        Removed = $summary.Removed
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsSettings = $false
+                    }
+                }
+                else {
+                    $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                    $pendingChanges += @{
+                        File = "rules/$rel"
+                        Action = "new"
+                        Added = $srcLines
+                        Removed = 0
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsSettings = $false
+                    }
+                }
+            }
+        }
+    }
+
+    # Collect hooks from templates-cascade/hooks/
+    $hooksSrc = Join-Path $templatesDir "hooks"
+    if (Test-Path $hooksSrc) {
+        $hookFiles = Get-ChildItem -Recurse -File $hooksSrc
+        foreach ($srcItem in $hookFiles) {
+            $rel     = $srcItem.FullName.Substring($hooksSrc.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $windsurfDir "hooks\$rel"
+
+            if (Test-Path $dstFile) {
+                $srcHash = (Get-FileHash $srcItem.FullName -Algorithm MD5).Hash
+                $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
+                if ($srcHash -eq $dstHash) {
+                    continue  # Identical, skip
+                }
+                $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                $pendingChanges += @{
+                    File = "hooks/$rel"
+                    Action = "update"
+                    Added = $summary.Added
+                    Removed = $summary.Removed
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsSettings = $false
+                }
+            }
+            else {
+                $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                $pendingChanges += @{
+                    File = "hooks/$rel"
+                    Action = "new"
+                    Added = $srcLines
+                    Removed = 0
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsSettings = $false
+                }
+            }
+        }
+    }
+
+    # Check hooks.json separately
+    $srcHooks = Join-Path $templatesDir "hooks.json"
+    $dstHooks = Join-Path $windsurfDir "hooks.json"
+    if (Test-Path $srcHooks) {
+        $pendingChanges += @{
+            File = "hooks.json"
+            Action = "merge"
+            Added = 0
+            Removed = 0
+            SrcFile = $srcHooks
+            DstFile = $dstHooks
+            IsHooks = $true
+        }
+    }
+
+    # Phase 2: Display summary table
+    Show-ChangeSummaryTable $pendingChanges
+
+    if ($pendingChanges.Count -eq 0) {
+        Write-Ok "No changes to apply."
+        return
+    }
+
+    # Phase 3: Single confirmation prompt (unless --force)
+    $applyAll = $false
+    if ($Force) {
+        $applyAll = $true
+    }
+    else {
+        do {
+            $choice = Read-Host "  Apply all changes? [Y/n/review]"
+            $choice = $choice.Trim().ToLower()
+        } while ($choice -notin @("", "y", "n", "review"))
+
+        switch ($choice) {
+            "" { $applyAll = $true }  # Enter = Y
+            "y" { $applyAll = $true }
+            "n" {
+                Write-Host "  Aborted — no changes applied." -ForegroundColor Yellow
+                return
+            }
+            "review" {
+                # Fall through to per-file review flow
+                $applyAll = $false
+            }
+        }
+    }
+
+    $accepted = 0
+    $rejected = 0
+    $skipped  = 0
+
+    # Phase 4: Apply changes
+    if ($applyAll) {
+        # Apply all changes without further prompts
+        foreach ($change in $pendingChanges) {
+            if ($change.IsHooks) {
+                Merge-HooksJson $change.SrcFile $change.DstFile
+                Write-Ok "Merged: hooks.json"
+                $accepted++
+            }
+            else {
+                New-Item -ItemType Directory -Force -Path (Split-Path $change.DstFile) | Out-Null
+                Copy-Item -Force $change.SrcFile $change.DstFile
+                Write-Ok "Accepted: $($change.File)"
+                $accepted++
+            }
+        }
+    }
+    else {
+        # Per-file review flow (existing behavior)
+        foreach ($change in $pendingChanges) {
+            if ($change.IsHooks) {
+                Write-Host ""
+                Write-Host "--- hooks.json (additive merge) ---" -ForegroundColor White
+                do {
+                    $choice = Read-Host "  Merge template hooks.json into project? Accept (a), Skip (s)? [a/s]"
+                } while ($choice -ne "a" -and $choice -ne "A" -and $choice -ne "s" -and $choice -ne "S")
+
+                if ($choice -eq "a" -or $choice -eq "A") {
+                    Merge-HooksJson $change.SrcFile $change.DstFile
+                    Write-Ok "Merged: hooks.json"
+                    $accepted++
+                }
+                else {
+                    Write-Skip "Skipped: hooks.json"
+                    $skipped++
+                }
+            }
+            else {
+                Write-Host ""
+                Write-Host "--- $($change.File) ---" -ForegroundColor White
+                if ($change.Action -eq "update") {
+                    Show-DiffSummary $change.SrcFile $change.DstFile
+                }
+                else {
+                    Write-Host "  [NEW FILE]" -ForegroundColor Yellow
+                }
+
+                do {
+                    $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
+                    if ($choice -eq "d" -or $choice -eq "D") {
+                        Show-DiffFull $change.SrcFile $change.DstFile
+                    }
+                } while ($choice -eq "d" -or $choice -eq "D")
+
+                switch ($choice.ToLower()) {
+                    "a" {
+                        New-Item -ItemType Directory -Force -Path (Split-Path $change.DstFile) | Out-Null
+                        Copy-Item -Force $change.SrcFile $change.DstFile
+                        Write-Ok "Accepted: $($change.File)"
+                        $accepted++
+                    }
+                    "r" {
+                        Write-Err "Rejected: $($change.File)"
+                        $rejected++
+                    }
+                    default {
+                        Write-Skip "Skipped: $($change.File)"
+                        $skipped++
+                    }
+                }
+            }
+        }
+    }
+
+    if ($accepted -gt 0) {
+        $dir = Split-Path $VERSION_STAMP_CASCADE
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        Set-Content -Path $VERSION_STAMP_CASCADE -Value $FRAMEWORK_VERSION -Encoding UTF8
         Write-Ok "Stamped version $FRAMEWORK_VERSION"
     }
 
@@ -559,10 +1317,20 @@ elseif ($Help) {
     Show-Help -Detailed $true
 }
 elseif ($Command -eq "init") {
-    Invoke-Bootstrap
+    if ($Agent -eq "cascade") {
+        Invoke-BootstrapCascade
+    }
+    else {
+        Invoke-Bootstrap
+    }
 }
 elseif ($Command -eq "update") {
-    Invoke-Update
+    if ($Agent -eq "cascade") {
+        Invoke-UpdateCascade -Force:$Force
+    }
+    else {
+        Invoke-Update -Force:$Force
+    }
 }
 elseif ($Command -eq "self-update") {
     Invoke-SelfUpdate

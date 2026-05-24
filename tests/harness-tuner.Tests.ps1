@@ -13,70 +13,112 @@
       - ht self-update calls git pull (mocked git)
 #>
 
-BeforeAll {
-    $script:RepoRoot   = Split-Path $PSScriptRoot
-    $script:MainScript = Join-Path $script:RepoRoot "harness-tuner.ps1"
+Describe "harness-tuner.ps1 — setup" {
+    BeforeAll {
+        $script:RepoRoot   = Split-Path $PSScriptRoot
+        $script:MainScript = Join-Path $script:RepoRoot "harness-tuner.ps1"
 
-    # Minimal templates/ stub used by all tests — mirrors the real structure.
-    # Each test that needs a temp project sets $env:HARNESS_TUNER_TEST_HOME.
-    function New-StubTemplates([string]$BaseDir) {
-        $tplDir = Join-Path $BaseDir "templates"
+        # Minimal templates/ stub used by all tests — mirrors the real structure.
+        # Each test that needs a temp project sets $env:HARNESS_TUNER_TEST_HOME.
+        function New-StubTemplates([string]$BaseDir) {
+            $tplDir = Join-Path $BaseDir "templates"
 
-        # rules/
-        $rulesDir = Join-Path $tplDir "rules"
-        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
-        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Identity`nLanguage: {{USER_LANGUAGE}}" -Encoding UTF8
-        Set-Content -Path (Join-Path $rulesDir "engram.md")   -Value "# Engram protocol" -Encoding UTF8
+            # rules/
+            $rulesDir = Join-Path $tplDir "rules"
+            New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+            Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Identity`nLanguage: {{USER_LANGUAGE}}" -Encoding UTF8
+            Set-Content -Path (Join-Path $rulesDir "engram.md")   -Value "# Engram protocol" -Encoding UTF8
 
-        # skills/
-        $skillDir = Join-Path $tplDir "skills" "git-flow"
-        New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
-        Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value "# git-flow skill" -Encoding UTF8
+            # skills/
+            $skillDir = Join-Path $tplDir "skills" "git-flow"
+            New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
+            Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value "# git-flow skill" -Encoding UTF8
 
-        # hooks/
-        $hooksDir = Join-Path $tplDir "hooks"
-        New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
-        Set-Content -Path (Join-Path $hooksDir "format-post-edit.ps1") -Value "# format hook" -Encoding UTF8
+            # hooks/
+            $hooksDir = Join-Path $tplDir "hooks"
+            New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
+            Set-Content -Path (Join-Path $hooksDir "format-post-edit.ps1") -Value "# format hook" -Encoding UTF8
 
-        # settings.json
-        $settingsJson = @'
+            # settings.json
+            $settingsJson = @'
 {
   "hooks": [],
   "mcpServers": {},
   "permissions": { "allowedTools": ["Read(**)"] }
 }
 '@
-        Set-Content -Path (Join-Path $tplDir "settings.json") -Value $settingsJson -Encoding UTF8
+            Set-Content -Path (Join-Path $tplDir "settings.json") -Value $settingsJson -Encoding UTF8
 
-        # VERSION
-        Set-Content -Path (Join-Path $BaseDir "VERSION") -Value "1.0.0" -Encoding UTF8
+            # VERSION
+            Set-Content -Path (Join-Path $BaseDir "VERSION") -Value "1.0.0" -Encoding UTF8
 
-        return $tplDir
+            return $tplDir
+        }
+
+        # Minimal templates-cascade/ stub for Cascade tests
+        function New-StubTemplatesCascade([string]$BaseDir) {
+            $tplDir = Join-Path $BaseDir "templates-cascade"
+
+            # rules/
+            $rulesDir = Join-Path $tplDir "rules"
+            New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+            Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "---`ntrigger: always_on`n---`n# Cascade Identity" -Encoding UTF8
+            Set-Content -Path (Join-Path $rulesDir "engram.md")   -Value "---`ntrigger: always_on`n---`n# Cascade Engram" -Encoding UTF8
+
+            # hooks/
+            $hooksDir = Join-Path $tplDir "hooks"
+            New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
+            Set-Content -Path (Join-Path $hooksDir "format-post-edit.ps1") -Value "# Cascade format hook" -Encoding UTF8
+
+            # hooks.json
+            $hooksJson = @'
+{
+  "hooks": {
+    "post-edit": ["format-post-edit.ps1"]
+  }
+}
+'@
+            Set-Content -Path (Join-Path $tplDir "hooks.json") -Value $hooksJson -Encoding UTF8
+
+            # mcp_config.json
+            $mcpJson = @'
+{
+  "mcpServers": {
+    "engram": {
+      "command": "node",
+      "args": ["engram-mcp-server"]
     }
+  }
+}
+'@
+            Set-Content -Path (Join-Path $tplDir "mcp_config.json") -Value $mcpJson -Encoding UTF8
 
-    # Helper: run harness-tuner.ps1 with a synthetic HARNESS_TUNER_HOME and working dir.
-    # Returns a hashtable: ExitCode, Output (string[]).
-    function Invoke-HT {
-        param(
-            [string]   $HarnessHome,     # synthetic HARNESS_TUNER_HOME (must have templates/ + VERSION)
-            [string]   $WorkDir,         # simulated project dir (cwd for the script)
-            [string[]] $ScriptArgs = @(), # positional / named args passed to the script
-            [string[]] $StdinLines = @()  # lines fed to Read-Host in order
-        )
+            return $tplDir
+        }
 
-        # Build a wrapper that:
-        #   1. Overrides $PSScriptRoot (not directly possible) — instead we
-        #      wrap the script invocation in a child process that sets
-        #      $script:HARNESS_TUNER_HOME before dot-sourcing the param block.
-        #   2. Supplies stdin lines via here-string piped through pwsh.
-        #
-        # Strategy: serialize StdinLines as a JSON array, pass via env var,
-        # and inject a tiny shim before the script runs in the child process.
+        # Helper: run harness-tuner.ps1 with a synthetic HARNESS_TUNER_HOME and working dir.
+        # Returns a hashtable: ExitCode, Output (string[]).
+        function Invoke-HT {
+            param(
+                [string]   $HarnessHome,     # synthetic HARNESS_TUNER_HOME (must have templates/ + VERSION)
+                [string]   $WorkDir,         # simulated project dir (cwd for the script)
+                [string[]] $ScriptArgs = @(), # positional / named args passed to the script
+                [string[]] $StdinLines = @()  # lines fed to Read-Host in order
+            )
 
-        $stdinJson = $StdinLines | ConvertTo-Json -Compress
+            # Build a wrapper that:
+            #   1. Overrides $PSScriptRoot (not directly possible) — instead we
+            #      wrap the script invocation in a child process that sets
+            #      $script:HARNESS_TUNER_HOME before dot-sourcing the param block.
+            #   2. Supplies stdin lines via here-string piped through pwsh.
+            #
+            # Strategy: serialize StdinLines as a JSON array, pass via env var,
+            # and inject a tiny shim before the script runs in the child process.
 
-        # The shim sets up the HARNESS_TUNER_HOME override and mocks Read-Host.
-        $shim = @"
+            $stdinJson = $StdinLines | ConvertTo-Json -Compress
+
+            # The shim sets up the HARNESS_TUNER_HOME override and mocks Read-Host.
+            $shim = @"
 `$ErrorActionPreference = 'Stop'
 Set-Location '$($WorkDir -replace "'", "''")'
 
@@ -85,7 +127,7 @@ Set-Location '$($WorkDir -replace "'", "''")'
 `$script:_stdinIdx   = 0
 function global:Read-Host {
     param([string]`$Prompt = '')
-    if (`$null -ne `$Prompt -and `$Prompt -ne '') { Write-Host "`$Prompt`: " -NoNewline }
+    if (`$null -ne `$Prompt -and `$Prompt -ne '') { Write-Host "`${Prompt}: " -NoNewline }
     `$line = if (`$script:_stdinIdx -lt `$script:_stdinLines.Count) { `$script:_stdinLines[`$script:_stdinIdx] } else { '' }
     `$script:_stdinIdx++
     Write-Host `$line
@@ -108,18 +150,19 @@ function script:Get-HarnessHome { return '$($HarnessHome -replace "'", "''")' }
 & `$sb $($ScriptArgs -join ' ')
 "@
 
-        $tmpShim = [System.IO.Path]::GetTempFileName() + ".ps1"
-        Set-Content -Path $tmpShim -Value $shim -Encoding UTF8
+            $tmpShim = [System.IO.Path]::GetTempFileName() + ".ps1"
+            Set-Content -Path $tmpShim -Value $shim -Encoding UTF8
 
-        try {
-            $result = pwsh -NoProfile -NonInteractive -File $tmpShim 2>&1
-            $exitCode = $LASTEXITCODE
-        }
-        finally {
-            Remove-Item $tmpShim -ErrorAction SilentlyContinue
-        }
+            try {
+                $result = pwsh -NoProfile -NonInteractive -File $tmpShim 2>&1
+                $exitCode = $LASTEXITCODE
+            }
+            finally {
+                Remove-Item $tmpShim -ErrorAction SilentlyContinue
+            }
 
-        return @{ ExitCode = $exitCode; Output = $result }
+            return @{ ExitCode = $exitCode; Output = $result }
+        }
     }
 }
 
@@ -346,11 +389,264 @@ Describe "harness-tuner.ps1 — ht init (foreign .claude/ coexistence)" {
 }
 
 # ---------------------------------------------------------------------------
-# Describe: ht update — interactive flow
+# Describe: ht update — batch confirmation
+# ---------------------------------------------------------------------------
+Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
+
+    It "should show summary table before any changes are applied" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        # Set up a project with files that need updating
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        # Old content to trigger diff
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $rulesDir "engram.md")   -Value "# Old engram" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Reject all changes to verify no files were modified
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("n")
+
+            $out = $r.Output -join "`n"
+
+            # Verify summary table is shown
+            $out | Should -Match "File.*Action.*\+lines.*-lines" -Because "summary table header should be displayed"
+            $out | Should -Match "identity.md" -Because "file should be listed in summary"
+            $out | Should -Match "engram.md" -Because "file should be listed in summary"
+
+            # Verify no files were modified (since we rejected)
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Old identity" -Because "file should not be modified after rejection"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should show single confirmation prompt regardless of file count" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $rulesDir "engram.md")   -Value "# Old engram" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("n")
+
+            $out = $r.Output -join "`n"
+
+            # Verify single prompt (not per-file prompts)
+            $out | Should -Match "Apply all changes" -Because "single confirmation prompt should be shown"
+            $out | Should -Match "\[Y/n/review\]" -Because "prompt should show Y/n/review options"
+
+            # Count how many times "Accept" appears - should be 0 (no per-file prompts)
+            $acceptCount = ([regex]::Matches($out, "Accept")).Count
+            $acceptCount | Should -Be 0 -Because "no per-file accept prompts should be shown"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should apply all changes when user enters Y" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("y")
+
+            $out = $r.Output -join "`n"
+
+            # Verify files were modified
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Language:" -Because "file should be updated with template content"
+            $identityContent | Should -Not -Match "Old identity" -Because "old content should be replaced"
+
+            # Verify version was stamped
+            $marker = Get-Content (Join-Path $claudeDir ".harness-tuner-version") -Raw
+            $marker.Trim() | Should -Be "1.0.0"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should apply all changes when user presses Enter (default Y)" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("")  # Empty string = Enter
+
+            $out = $r.Output -join "`n"
+
+            # Verify files were modified
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Language:" -Because "file should be updated with template content"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should exit cleanly with no files modified when user enters n" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("n")
+
+            $out = $r.Output -join "`n"
+
+            # Verify no files were modified
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Old identity" -Because "file should not be modified"
+
+            # Verify version was NOT stamped
+            $marker = Get-Content (Join-Path $claudeDir ".harness-tuner-version") -Raw
+            $marker.Trim() | Should -Be "0.9.0" -Because "version should not be updated"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should apply all changes with --force flag (zero prompts)" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Force") `
+                -StdinLines  @()
+
+            $out = $r.Output -join "`n"
+
+            # Verify no prompt was shown
+            $out | Should -Not -Match "Apply all changes" -Because "no prompt should be shown with --force"
+
+            # Verify files were modified
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Language:" -Because "file should be updated"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should enter per-file review flow when user enters review" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+
+        $claudeDir = Join-Path $tempProject.FullName ".claude"
+        $rulesDir  = Join-Path $claudeDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Enter review mode, then accept first file, skip rest, skip settings
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update") `
+                -StdinLines  @("review", "a", "s", "s", "s", "s")
+
+            $out = $r.Output -join "`n"
+
+            # Verify per-file prompts were shown (review mode)
+            $out | Should -Match "--- identity.md ---" -Because "per-file headers should be shown in review mode"
+
+            # Verify first file was accepted
+            $identityContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $identityContent | Should -Match "Language:" -Because "accepted file should be updated"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Describe: ht update — interactive flow (legacy per-file mode via review)
 # ---------------------------------------------------------------------------
 Describe "harness-tuner.ps1 — ht update (interactive)" {
 
-    It "should stamp new version when a file is accepted" {
+    It "should stamp new version when a file is accepted (review mode)" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
         $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
         New-StubTemplates $tempHome.FullName | Out-Null
@@ -373,12 +669,12 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
         Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
 
         try {
-            # Accept first file (identity.md), skip rest, accept settings.json
+            # Enter review mode, accept first file (identity.md), skip rest, accept settings.json
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
                 -ScriptArgs  @("update") `
-                -StdinLines  @("a", "s", "s", "s", "a")
+                -StdinLines  @("review", "a", "s", "s", "s", "a")
 
             $out = $r.Output -join "`n"
             $out | Should -Match "Accepted"
@@ -392,7 +688,7 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
         }
     }
 
-    It "should not stamp version when all files are skipped or rejected" {
+    It "should not stamp version when all files are skipped or rejected (review mode)" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
         $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
         New-StubTemplates $tempHome.FullName | Out-Null
@@ -404,12 +700,12 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
         Set-Content -Path (Join-Path $claudeDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
 
         try {
-            # Reject / skip everything
+            # Enter review mode, reject / skip everything
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
                 -ScriptArgs  @("update") `
-                -StdinLines  @("r", "s", "s", "s", "s")
+                -StdinLines  @("review", "r", "s", "s", "s", "s")
 
             $marker = Get-Content (Join-Path $claudeDir ".harness-tuner-version") -Raw
             $marker.Trim() | Should -Be "0.9.0"   # unchanged
@@ -502,6 +798,200 @@ Describe "harness-tuner.ps1 — legacy .windsurf/ ignored" {
             $r.ExitCode | Should -Be 0
             $marker = Join-Path $tempProject.FullName ".claude" ".harness-tuner-version"
             Test-Path $marker | Should -Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Describe: ht update -Agent cascade
+# ---------------------------------------------------------------------------
+Describe "harness-tuner.ps1 — ht update -Agent cascade" {
+
+    It "should update skills from templates/skills/" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project with old skill content
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        $skillDir = Join-Path $windsurfDir "skills" "git-flow"
+        New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
+        Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value "# Old skill" -Encoding UTF8
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Accept the skill update (per-file prompts)
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("a", "a", "a", "a", "a")
+
+            # Check that the skill file was updated
+            $skillContent = Get-Content (Join-Path $skillDir "SKILL.md") -Raw
+            $skillContent -match "git-flow skill" | Should Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should route ht update -Agent cascade to Invoke-UpdateCascade" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        New-Item -ItemType Directory -Force -Path $windsurfDir | Out-Null
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Run update with cascade agent
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("s", "s", "s", "s", "s")
+
+            # Should complete without error (even if we skip everything)
+            $r.ExitCode | Should Be 0
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should update rules from templates-cascade/rules/" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project with old rule content
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        $rulesDir = Join-Path $windsurfDir "rules"
+        New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+        Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Old identity" -Encoding UTF8
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Accept all changes to ensure rules get updated
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("a", "a", "a", "a", "a")
+
+            # Check that the rule file was updated
+            $ruleContent = Get-Content (Join-Path $rulesDir "identity.md") -Raw
+            $ruleContent -match "Cascade Identity" | Should Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should update hooks scripts from templates-cascade/hooks/" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project with old hook content
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        $hooksDir = Join-Path $windsurfDir "hooks"
+        New-Item -ItemType Directory -Force -Path $hooksDir | Out-Null
+        Set-Content -Path (Join-Path $hooksDir "format-post-edit.ps1") -Value "# Old hook" -Encoding UTF8
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Accept all changes to ensure hooks get updated
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("a", "a", "a", "a", "a")
+
+            # Check that the hook file was updated
+            $hookContent = Get-Content (Join-Path $hooksDir "format-post-edit.ps1") -Raw
+            $hookContent -match "Cascade format hook" | Should Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should merge hooks.json additively" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project with existing hooks.json
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        New-Item -ItemType Directory -Force -Path $windsurfDir | Out-Null
+        $existingHooks = @'
+{
+  "hooks": {
+    "pre-edit": ["existing-hook.ps1"]
+  }
+}
+'@
+        Set-Content -Path (Join-Path $windsurfDir "hooks.json") -Value $existingHooks -Encoding UTF8
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Accept the hooks.json merge
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("s", "s", "s", "s", "a")
+
+            # Check that hooks.json was merged (existing hook preserved, new hook added)
+            $hooksJson = Get-Content (Join-Path $windsurfDir "hooks.json") -Raw
+            $hooksJson -match "pre-edit" | Should Be $true
+            $hooksJson -match "post-edit" | Should Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should stamp version after update" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCascade $tempHome.FullName | Out-Null
+
+        # Set up a .windsurf/ project
+        $windsurfDir = Join-Path $tempProject.FullName ".windsurf"
+        New-Item -ItemType Directory -Force -Path $windsurfDir | Out-Null
+        Set-Content -Path (Join-Path $windsurfDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            # Accept a change to trigger version stamp
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -StdinLines  @("a", "s", "s", "s", "s")
+
+            # Check that version was stamped
+            $version = Get-Content (Join-Path $windsurfDir ".harness-tuner-version") -Raw
+            $version.Trim() | Should Be "1.0.0"
         }
         finally {
             Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue

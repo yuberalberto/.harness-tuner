@@ -44,13 +44,13 @@ Independent (ready from day 0):
 | 09 | Hook: `engram-session-end` | AFK | `done` | — |
 | 10 | Hook: `format-post-edit` | AFK | `done` | — |
 | 11 | Hook: `git-guardrails-pre-bash` | AFK | `done` | — |
-| 12 | `templates/settings.json` declarations | AFK | `ready` | 08-11 ✓ |
+| 12 | `templates/settings.json` declarations | AFK | `done` | 08-11 ✓ |
 | 13 | `get.ps1` remote installer | AFK | `done` | 01 ✓ |
 | 14 | Doc: `docs/philosophy.md` | HITL | `done` | — |
 | 15 | Docs: 3 ADRs | HITL | `done` | — |
-| 16 | README rewrite | AFK | `ready` | 13 ✓, 14 ✓ |
-| 17 | CHANGELOG v1.0.0 entry | AFK | `ready` | most ✓ |
-| 18 | Dogfooding + acceptance verification | HITL | `blocked` | all |
+| 16 | README rewrite | AFK | `done` | 13 ✓, 14 ✓ |
+| 17 | CHANGELOG v1.0.0 entry | AFK | `done` | most ✓ |
+| 18 | Dogfooding + acceptance verification | HITL | `ready` | all ✓ |
 
 ## Status Legend
 

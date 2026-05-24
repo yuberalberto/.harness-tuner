@@ -37,19 +37,19 @@ Independent (ready from day 0):
 | 02 | `harness-tuner.ps1` (subcommands + coexistence) | AFK | `done` | — |
 | 03 | `templates/rules/` (3 rules) | AFK | `done` | — |
 | 04 | `templates/skills/` migration + `.specs/` rename + inline testing | AFK | `done` | — |
-| 05 | New skill: `grill-me` | AFK | `ready` | 04 ✓ |
-| 06 | New skill: `code-standards` | AFK | `ready` | 04 ✓ |
-| 07 | New skill: `inspect-harness` | AFK | `ready` | 04 ✓ |
-| 08 | Hook: `engram-session-start` | AFK | `ready` | — |
-| 09 | Hook: `engram-session-end` | AFK | `ready` | — |
-| 10 | Hook: `format-post-edit` | AFK | `ready` | — |
-| 11 | Hook: `git-guardrails-pre-bash` | AFK | `ready` | — |
-| 12 | `templates/settings.json` declarations | AFK | `blocked` | 08, 09, 10, 11 |
-| 13 | `get.ps1` remote installer | AFK | `ready` | 01 ✓ |
-| 14 | Doc: `docs/philosophy.md` | HITL | `ready` | — |
-| 15 | Docs: 3 ADRs | HITL | `ready` | — |
-| 16 | README rewrite | AFK | `blocked` | 13, 14 |
-| 17 | CHANGELOG v1.0.0 entry | AFK | `blocked` | most |
+| 05 | New skill: `grill-me` | AFK | `done` | 04 ✓ |
+| 06 | New skill: `code-standards` | AFK | `done` | 04 ✓ |
+| 07 | New skill: `inspect-harness` | AFK | `done` | 04 ✓ |
+| 08 | Hook: `engram-session-start` | AFK | `done` | — |
+| 09 | Hook: `engram-session-end` | AFK | `done` | — |
+| 10 | Hook: `format-post-edit` | AFK | `done` | — |
+| 11 | Hook: `git-guardrails-pre-bash` | AFK | `done` | — |
+| 12 | `templates/settings.json` declarations | AFK | `ready` | 08-11 ✓ |
+| 13 | `get.ps1` remote installer | AFK | `done` | 01 ✓ |
+| 14 | Doc: `docs/philosophy.md` | HITL | `done` | — |
+| 15 | Docs: 3 ADRs | HITL | `done` | — |
+| 16 | README rewrite | AFK | `ready` | 13 ✓, 14 ✓ |
+| 17 | CHANGELOG v1.0.0 entry | AFK | `ready` | most ✓ |
 | 18 | Dogfooding + acceptance verification | HITL | `blocked` | all |
 
 ## Status Legend

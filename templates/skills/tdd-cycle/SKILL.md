@@ -135,6 +135,10 @@ After all tests pass, look for refactor candidates:
 
 **Never refactor while RED.** Get to GREEN first.
 
+Invoke `/code-standards` to evaluate the diff against naming conventions, comment
+style, function size, error handling, and dead code. Apply suggested refactors
+before proceeding to Step 5.
+
 ### Step 5 — Cycle Checklist
 
 ```

@@ -33,19 +33,19 @@ Independent (ready from day 0):
 
 | Issue | Title | Type | Status | Blocked By |
 |-------|-------|------|--------|-----------|
-| 01 | `install.ps1` simplified (alias only) | AFK | `ready` | — |
-| 02 | `harness-tuner.ps1` (subcommands + coexistence) | AFK | `ready` | — |
-| 03 | `templates/rules/` (3 rules) | AFK | `ready` | — |
-| 04 | `templates/skills/` migration + `.specs/` rename + inline testing | AFK | `ready` | — |
-| 05 | New skill: `grill-me` | AFK | `blocked` | 04 |
-| 06 | New skill: `code-standards` | AFK | `blocked` | 04 |
-| 07 | New skill: `inspect-harness` | AFK | `blocked` | 04 |
+| 01 | `install.ps1` simplified (alias only) | AFK | `done` | — |
+| 02 | `harness-tuner.ps1` (subcommands + coexistence) | AFK | `done` | — |
+| 03 | `templates/rules/` (3 rules) | AFK | `done` | — |
+| 04 | `templates/skills/` migration + `.specs/` rename + inline testing | AFK | `done` | — |
+| 05 | New skill: `grill-me` | AFK | `ready` | 04 ✓ |
+| 06 | New skill: `code-standards` | AFK | `ready` | 04 ✓ |
+| 07 | New skill: `inspect-harness` | AFK | `ready` | 04 ✓ |
 | 08 | Hook: `engram-session-start` | AFK | `ready` | — |
 | 09 | Hook: `engram-session-end` | AFK | `ready` | — |
 | 10 | Hook: `format-post-edit` | AFK | `ready` | — |
 | 11 | Hook: `git-guardrails-pre-bash` | AFK | `ready` | — |
 | 12 | `templates/settings.json` declarations | AFK | `blocked` | 08, 09, 10, 11 |
-| 13 | `get.ps1` remote installer | AFK | `blocked` | 01 |
+| 13 | `get.ps1` remote installer | AFK | `ready` | 01 ✓ |
 | 14 | Doc: `docs/philosophy.md` | HITL | `ready` | — |
 | 15 | Docs: 3 ADRs | HITL | `ready` | — |
 | 16 | README rewrite | AFK | `blocked` | 13, 14 |

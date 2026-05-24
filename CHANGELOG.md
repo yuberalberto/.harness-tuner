@@ -4,6 +4,73 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] — 2026-05-23
+
+### BREAKING
+
+- **Renamed**: project is now `harness-tuner`; CLI command changes from `init-ai` to `ht`.
+- **Dropped Cascade / Windsurf support**: `cascade/` directory and all `.windsurf/` writing are gone.
+- **Dropped global junctions**: `install.ps1` no longer creates junctions under `~/.claude/skills/`.
+- **Workspace marker moved**: `.windsurf/.init-ai-version` → `.claude/.harness-tuner-version`.
+- **SDD working dir renamed**: `.scratch/` → `.specs/`.
+
+### Added
+
+- **5-layer harness model**: philosophy.md documents the conceptual framework (Identity, Memory, Process, Tools, Guardrails).
+- **`templates/hooks/`**: 4 lifecycle hooks — `engram-session-start`, `engram-session-end`, `format-post-edit`, `git-guardrails-pre-bash`.
+- **MCP declarations**: `engram` and `context7` declared in `templates/settings.json`.
+- **3 new skills**: `grill-me`, `code-standards`, `inspect-harness`.
+- **`get.ps1`**: one-liner installer (`irm https://... | iex`).
+- **`ht self-update`** subcommand: updates the harness from the remote repo.
+- **`docs/philosophy.md`**: rationale and design principles.
+- **3 ADRs**: recorded under `docs/adr/`.
+
+### Changed
+
+- `install.ps1` simplified to alias-only setup (no junction logic).
+- `harness-tuner.ps1` uses subcommand CLI: `ht init` / `ht update` / `ht self-update`.
+- `testing.md` rule content moved inline into `tdd-cycle/SKILL.md`; standalone rule removed.
+- `sdd-process.md` trimmed to the workflow router table only.
+
+### Removed
+
+- `cascade/` directory.
+- All `.windsurf/` file writing.
+- Global junction logic from `install.ps1`.
+- `testing.md` as a standalone rule file.
+
+### Migration Notes
+
+Existing `init-ai` users:
+
+1. `git clone https://github.com/yuberalberto/harness-tuner.git`
+2. Run the new `install.ps1` (registers the `ht` alias).
+3. In each project, run `ht init` to deploy the updated harness.
+
+Legacy `.windsurf/` directories are left in place and ignored — there is no auto-migration.
+
+## [0.7.0] — 2026-05-21
+
+### Changed
+- **Per-agent native architecture**: replaced `methodology/` + `adapters/` with two
+  top-level agent folders — `claude-code/` (deployed to `.claude/`) and `cascade/`
+  (deployed to `.windsurf/`), each holding rules and skills in the agent's native format
+- Rules reduced to 4 always-on files: `sdd-process`, `testing`, `identity`, `engram`
+- Skills migrated to 9 self-contained skills (full inline workflow, no thin wrappers):
+  `grill-with-docs`, `to-prd`, `to-issues`, `tdd-cycle`, `zoom-out`,
+  `improve-codebase-architecture`, `audit`, `review`, `git-flow`
+- Issue tracking moved to local markdown under `.scratch/<feature>/` with an
+  `INDEX.md` dependency graph + status table
+- `install.ps1` now junctions `claude-code/skills/` instead of the old adapter paths
+- `init-ai.ps1` deploys both agent folders and dropped the unused `-ProjectName` parameter
+
+### Removed
+- `methodology/`, `adapters/`, `templates/`, and `specs/` directories
+- `CLAUDE.md.template` and all CLAUDE.md generation — bootstrap never touches CLAUDE.md
+- Eliminated skills: `create-spec`, `spec-to-code`, `wiki-gen`, `handoff`, `safe-delete`,
+  `simplify`, `legacy-modernize`, `context-doc`, `task-transition`, `restore-context`,
+  `pr-review`
+
 ## [0.6.0] — 2026-05-18
 
 ### Changed

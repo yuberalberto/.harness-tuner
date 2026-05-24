@@ -1,153 +1,61 @@
 <#
 .SYNOPSIS
-    One-time PC setup: create Claude Code skill junctions for all init-ai workflows.
+    Adds the `ht` function to PowerShell profile.
 
 .DESCRIPTION
-    Creates directory junctions in ~/.claude/skills/ pointing to:
-    - ~/init-ai/adapters/claude-code/skills/[workflow]/  (for workflow wrappers + init-ai meta)
-    - ~/init-ai/methodology/skills/[skill]/              (for SDD skills: create-spec, run-tests, validate-spec)
-
-    Run once per machine. Use --force to reinstall.
+    Installs a shell alias function in $PROFILE.CurrentUserAllHosts that delegates
+    to ~/.harness-tuner/harness-tuner.ps1. Idempotent: skips if `ht` function
+    already exists in profile.
 
 .EXAMPLE
-    & "$env:USERPROFILE\init-ai\install.ps1"
-    & "$env:USERPROFILE\init-ai\install.ps1" --force
+    & "$env:USERPROFILE\.harness-tuner\install.ps1"
 #>
 
 param(
-    [switch]$force
+    [string]$ProfilePath = $null
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$INIT_AI_HOME  = $PSScriptRoot
-$CLAUDE_SKILLS = Join-Path $env:USERPROFILE ".claude\skills"
-$VERSION       = (Get-Content (Join-Path $INIT_AI_HOME "VERSION") -Raw).Trim()
-
-# ---------------------------------------------------------------------------
-# Already-installed check
-# ---------------------------------------------------------------------------
-
-function Test-AlreadyInstalled {
-    $hasJunctions = (Test-Path $CLAUDE_SKILLS) -and
-        ((Get-ChildItem -Directory $CLAUDE_SKILLS -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0)
-
-    $hasAlias = $false
-    $profilePath = $PROFILE.CurrentUserAllHosts
-    if (Test-Path $profilePath) {
-        $hasAlias = (Get-Content $profilePath -Raw) -match 'function init-ai'
-    }
-
-    return ($hasJunctions -and $hasAlias)
+# Allow test override of profile path, otherwise use the standard location
+if ([string]::IsNullOrEmpty($ProfilePath)) {
+    $ProfilePath = $PROFILE.CurrentUserAllHosts
 }
 
-if (-not $force -and (Test-AlreadyInstalled)) {
-    Write-Host ""
-    Write-Host "init-ai is already installed (v$VERSION)" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  To update a project:  init-ai --update" -ForegroundColor White
-    Write-Host "  To reinstall:         & `"$env:USERPROFILE\init-ai\install.ps1`" --force" -ForegroundColor White
-    Write-Host ""
+# The function block to add to the profile
+$aliasBlock = @'
+
+# harness-tuner - CLI alias
+function ht { & "$env:USERPROFILE\.harness-tuner\harness-tuner.ps1" @args }
+'@
+
+# Check if ht function already exists in profile
+$aliasExists = $false
+if (Test-Path $ProfilePath) {
+    $profileContent = Get-Content $ProfilePath -Raw
+    if ($profileContent -match 'function\s+ht\s*\{') {
+        $aliasExists = $true
+    }
+}
+
+# Idempotency: skip if already installed
+if ($aliasExists) {
+    Write-Host "ht function already in profile - skipping."
     exit 0
 }
 
-function Write-Ok([string]$msg)   { Write-Host "  [OK] $msg"   -ForegroundColor Green }
-function Write-Skip([string]$msg) { Write-Host "  [--] $msg"   -ForegroundColor DarkGray }
-function Write-Warn([string]$msg) { Write-Host "  [!!] $msg"   -ForegroundColor Yellow }
-
-function New-Junction([string]$linkPath, [string]$targetPath) {
-    if (-not (Test-Path $targetPath)) {
-        Write-Warn "Target not found, skipping: $targetPath"
-        return
-    }
-    if (Test-Path $linkPath) {
-        $item = Get-Item $linkPath -Force
-        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-            Write-Skip "Junction already exists: $(Split-Path $linkPath -Leaf)"
-        } else {
-            Write-Warn "Path exists but is not a junction: $linkPath"
-        }
-        return
-    }
-    New-Item -ItemType Junction -Path $linkPath -Target $targetPath | Out-Null
-    Write-Ok "Created junction: $(Split-Path $linkPath -Leaf)"
+# Create $PROFILE directory if it doesn't exist
+$profileDir = Split-Path $ProfilePath
+if (-not (Test-Path $profileDir)) {
+    New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
 }
 
-# ---------------------------------------------------------------------------
-# Ensure ~/.claude/skills/ exists
-# ---------------------------------------------------------------------------
-New-Item -ItemType Directory -Force -Path $CLAUDE_SKILLS | Out-Null
+# Add the ht function to the profile
+Add-Content -Path $ProfilePath -Value $aliasBlock -Encoding UTF8
+
+# Confirmation and reload instruction
 Write-Host ""
-Write-Host "=== Installing init-ai Claude Code skills ===" -ForegroundColor Cyan
-Write-Host "  Target: $CLAUDE_SKILLS"
-Write-Host ""
-
-# ---------------------------------------------------------------------------
-# Workflow skill wrappers (adapters/claude-code/skills/)
-# ---------------------------------------------------------------------------
-$adapterSkills = Join-Path $INIT_AI_HOME "adapters\claude-code\skills"
-Get-ChildItem -Directory $adapterSkills | ForEach-Object {
-    New-Junction (Join-Path $CLAUDE_SKILLS $_.Name) $_.FullName
-}
-
-# ---------------------------------------------------------------------------
-# SDD skills (methodology/skills/) — create-spec, run-tests, validate-spec
-# ---------------------------------------------------------------------------
-$methodologySkills = Join-Path $INIT_AI_HOME "methodology\skills"
-Get-ChildItem -Directory $methodologySkills | ForEach-Object {
-    $linkPath = Join-Path $CLAUDE_SKILLS $_.Name
-    # Prefer adapter version if it exists; otherwise point to methodology directly
-    if (-not (Test-Path $linkPath)) {
-        New-Junction $linkPath $_.FullName
-    } else {
-        Write-Skip "Already linked: $($_.Name)"
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Shell alias — add `init-ai` function to PowerShell profile
-# ---------------------------------------------------------------------------
-
-$profilePath = $PROFILE.CurrentUserAllHosts
-$aliasBlock  = @'
-
-# init-ai — bootstrap & update AI methodology
-function init-ai { & "$env:USERPROFILE\init-ai\init-ai.ps1" @args }
-'@
-
-$aliasInstalled = $false
-if (Test-Path $profilePath) {
-    $profileContent = Get-Content $profilePath -Raw
-    if ($profileContent -match 'function init-ai') {
-        Write-Skip "Shell alias 'init-ai' already in profile"
-        $aliasInstalled = $true
-    }
-}
-
-if (-not $aliasInstalled) {
-    if (-not (Test-Path (Split-Path $profilePath))) {
-        New-Item -ItemType Directory -Force -Path (Split-Path $profilePath) | Out-Null
-    }
-    Add-Content -Path $profilePath -Value $aliasBlock -Encoding UTF8
-    Write-Ok "Added 'init-ai' alias to $profilePath"
-    Write-Host "    Reload with: . `$PROFILE" -ForegroundColor DarkYellow
-}
-
-# ---------------------------------------------------------------------------
-# Summary
-# ---------------------------------------------------------------------------
-Write-Host ""
-Write-Host "=== Installation complete ===" -ForegroundColor Green
-Write-Host ""
-$count = (Get-ChildItem -Directory $CLAUDE_SKILLS | Measure-Object).Count
-Write-Host "  Skills installed: $count"
-Write-Host "  Location: $CLAUDE_SKILLS"
-Write-Host ""
-Write-Host "  Usage:" -ForegroundColor White
-Write-Host "    init-ai                  # bootstrap a project"
-Write-Host "    init-ai --update         # update an existing project"
-Write-Host ""
-Write-Host "  Slash commands available in Claude Code:"
-Get-ChildItem -Directory $CLAUDE_SKILLS | ForEach-Object { Write-Host "    /$($_.Name)" }
+Write-Host "Added ht function to profile." -ForegroundColor Green
+Write-Host "Reload your profile to use it:  . `$PROFILE" -ForegroundColor DarkYellow
 Write-Host ""

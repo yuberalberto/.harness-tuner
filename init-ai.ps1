@@ -1,22 +1,22 @@
 <#
 .SYNOPSIS
-    Bootstrap or update a project with the init-ai methodology.
+    Bootstrap or update a project with init-ai (Claude Code + Cascade rules and skills).
 
 .DESCRIPTION
     Without flags   — Bootstraps a new project. Aborts if .windsurf/ already exists.
+                      Deploys claude-code/ -> .claude/ and cascade/ -> .windsurf/.
+                      Never generates or touches CLAUDE.md.
     --update        — Interactive diff: shows changes per file, prompts accept/reject/skip.
 
-.PARAMETER ProjectName
-    (Optional) Project name written into CLAUDE.md. Skips the interactive prompt.
-
 .PARAMETER Language
-    (Optional) User chat language written into CLAUDE.md (e.g. Spanish). Skips the interactive prompt.
+    (Optional) User chat language interpolated into the identity rule (e.g. Spanish).
+    Skips the interactive prompt.
 
 .EXAMPLE
     # From inside your project directory:
     & "$env:USERPROFILE\init-ai\init-ai.ps1"
     & "$env:USERPROFILE\init-ai\init-ai.ps1" --update
-    & "$env:USERPROFILE\init-ai\init-ai.ps1" -ProjectName my-app -Language Spanish
+    & "$env:USERPROFILE\init-ai\init-ai.ps1" -Language Spanish
 #>
 
 param(
@@ -24,7 +24,6 @@ param(
     [switch]$version,
     [switch]$changelog,
     [switch]$help,
-    [string]$ProjectName = "",
     [string]$Language    = ""
 )
 
@@ -38,7 +37,8 @@ if ($args -contains '--changelog') { $changelog = $true }
 if ($args -contains '--help')      { $help      = $true }
 
 $INIT_AI_HOME = $PSScriptRoot
-$METHODOLOGY  = Join-Path $INIT_AI_HOME "methodology"
+$CLAUDE_CODE  = Join-Path $INIT_AI_HOME "claude-code"
+$CASCADE      = Join-Path $INIT_AI_HOME "cascade"
 $TARGET       = Get-Location | Select-Object -ExpandProperty Path
 $FRAMEWORK_VERSION = (Get-Content (Join-Path $INIT_AI_HOME "VERSION") -Raw).Trim()
 $VERSION_STAMP     = Join-Path $TARGET ".windsurf" ".init-ai-version"
@@ -132,14 +132,23 @@ function Show-DiffFull([string]$srcFile, [string]$dstFile) {
     }
 }
 
-function Copy-MethodologyTree([string]$srcDir, [string]$dstDir) {
+function Copy-FrameworkTree([string]$srcDir, [string]$dstDir, [string]$userLanguage = "") {
     New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
     Get-ChildItem -Recurse -File $srcDir | ForEach-Object {
         $rel = $_.FullName.Substring($srcDir.Length).TrimStart('\', '/')
         $dst = Join-Path $dstDir $rel
         New-Item -ItemType Directory -Force -Path (Split-Path $dst) | Out-Null
-        Copy-Item -Force $_.FullName $dst
-        Write-Ok "Copied $rel"
+
+        # For identity.md files, interpolate {{USER_LANGUAGE}}
+        if ($_.Name -eq "identity.md" -and $userLanguage) {
+            $content = Get-Content $_.FullName -Raw
+            $compiled = $content -replace "{{USER_LANGUAGE}}", $userLanguage
+            Set-Content -Path $dst -Value $compiled -Encoding UTF8
+            Write-Ok "Copied $rel (interpolated USER_LANGUAGE)"
+        } else {
+            Copy-Item -Force $_.FullName $dst
+            Write-Ok "Copied $rel"
+        }
     }
 }
 
@@ -149,27 +158,34 @@ function Copy-MethodologyTree([string]$srcDir, [string]$dstDir) {
 
 function Invoke-Bootstrap {
     $windsurfDir = Join-Path $TARGET ".windsurf"
+    $claudeDir   = Join-Path $TARGET ".claude"
+
     if (Test-Path $windsurfDir) {
         Write-Err "Project already initialized (.windsurf/ exists)."
-        Write-Host "  Use --update to pull in methodology changes." -ForegroundColor Yellow
+        Write-Host "  Use --update to pull in framework changes." -ForegroundColor Yellow
         exit 1
     }
 
     Write-Header "Bootstrapping $TARGET"
 
-    # 1. Copy methodology
-    Write-Host ""
-    Write-Host "Copying methodology files..." -ForegroundColor Cyan
-    Copy-MethodologyTree (Join-Path $METHODOLOGY "rules")     (Join-Path $windsurfDir "rules")
-    Copy-MethodologyTree (Join-Path $METHODOLOGY "workflows") (Join-Path $windsurfDir "workflows")
-    Copy-MethodologyTree (Join-Path $METHODOLOGY "skills")    (Join-Path $windsurfDir "skills")
+    # Get user language for interpolation
+    $userLanguage = if ($Language) { $Language } else { Read-Host "User chat language (e.g. Spanish, English)" }
 
-    # 2. Create specs/ directory
-    $specsDir = Join-Path $TARGET "specs"
-    New-Item -ItemType Directory -Force -Path $specsDir | Out-Null
-    Write-Ok "Created specs/"
+    # 1. Copy claude-code/ → .claude/
+    Write-Host ""
+    Write-Host "Copying claude-code framework..." -ForegroundColor Cyan
+    Copy-FrameworkTree (Join-Path $CLAUDE_CODE "rules") (Join-Path $claudeDir "rules") $userLanguage
+    Copy-FrameworkTree (Join-Path $CLAUDE_CODE "skills") (Join-Path $claudeDir "skills") $userLanguage
+
+    # 2. Copy cascade/ → .windsurf/
+    Write-Host ""
+    Write-Host "Copying cascade framework..." -ForegroundColor Cyan
+    Copy-FrameworkTree (Join-Path $CASCADE "rules") (Join-Path $windsurfDir "rules") $userLanguage
+    Copy-FrameworkTree (Join-Path $CASCADE "skills") (Join-Path $windsurfDir "skills") $userLanguage
 
     # 3. Add scratch/ to .gitignore
+    Write-Host ""
+    Write-Host "Configuring .gitignore..." -ForegroundColor Cyan
     $gitignorePath = Join-Path $TARGET ".gitignore"
     $scratchEntry  = "scratch/"
     if (Test-Path $gitignorePath) {
@@ -185,36 +201,14 @@ function Invoke-Bootstrap {
         Write-Ok "Created .gitignore with scratch/"
     }
 
-    # 4. Generate CLAUDE.md
-    $claudeDir  = Join-Path $TARGET ".claude"
-    $claudeMd   = Join-Path $claudeDir "CLAUDE.md"
-    New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null
-
-    $defaultName  = Split-Path $TARGET -Leaf
-    $projectName  = if ($ProjectName) { $ProjectName } else {
-        $input = Read-Host "Project name [$defaultName]"
-        if ($input) { $input } else { $defaultName }
-    }
-    $userLanguage = if ($Language)     { $Language }     else { Read-Host "User chat language (e.g. Spanish, English)" }
-
-    if (-not (Test-Path $claudeMd)) {
-        $template = Get-Content (Join-Path $INIT_AI_HOME "adapters\claude-code\CLAUDE.md.template") -Raw
-        $compiled = $template -replace "{{PROJECT_NAME}}", $projectName
-        $compiled = $compiled -replace "{{USER_LANGUAGE}}", $userLanguage
-        Set-Content -Path $claudeMd -Value $compiled -Encoding UTF8
-        Write-Ok "Generated .claude/CLAUDE.md"
-    } else {
-        Write-Skip ".claude/CLAUDE.md already exists — skipping"
-    }
-
-    # 5. Stamp version
+    # 4. Stamp version
+    Write-Host ""
     Write-VersionStamp
     Write-Ok "Stamped version $FRAMEWORK_VERSION"
 
     Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
     Write-Host ""
-    Write-Host "  1. Fill in .claude/CLAUDE.md (PROJECT-SPECIFIC section at the bottom)" -ForegroundColor White
-    Write-Host "  2. git add .windsurf specs .gitignore .claude && git commit -m 'chore: init ai'" -ForegroundColor White
+    Write-Host "  git add .claude .windsurf .gitignore && git commit -m 'chore: init ai'" -ForegroundColor White
     Write-Host ""
 }
 
@@ -224,6 +218,8 @@ function Invoke-Bootstrap {
 
 function Invoke-Update {
     $windsurfDir = Join-Path $TARGET ".windsurf"
+    $claudeDir   = Join-Path $TARGET ".claude"
+
     if (-not (Test-Path $windsurfDir)) {
         Write-Err "Project not yet initialized (.windsurf/ not found). Run without --update first."
         exit 1
@@ -252,54 +248,78 @@ function Invoke-Update {
     $skipped  = 0
     $rejected = 0
 
-    $methodologyFiles = Get-ChildItem -Recurse -File $METHODOLOGY
-    foreach ($srcFile in $methodologyFiles) {
-        $rel     = $srcFile.FullName.Substring($METHODOLOGY.Length).TrimStart('\', '/')
-        $dstFile = Join-Path $windsurfDir $rel
+    # Collect all framework files from both claude-code and cascade
+    $sourceFiles = @()
+    $sourceFiles += @{ src = $CLAUDE_CODE; dst = $claudeDir; agent = "claude-code" }
+    $sourceFiles += @{ src = $CASCADE; dst = $windsurfDir; agent = "cascade" }
 
-        Write-Host ""
-        Write-Host "--- $rel ---" -ForegroundColor White
+    foreach ($sourcePair in $sourceFiles) {
+        $srcRoot = $sourcePair.src
+        $dstRoot = $sourcePair.dst
+        $agent   = $sourcePair.agent
 
-        if (Test-Path $dstFile) {
-            $srcHash = (Get-FileHash $srcFile.FullName -Algorithm MD5).Hash
-            $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
-            if ($srcHash -eq $dstHash) {
-                Write-Skip "Identical — skipping"
-                continue
-            }
-            Show-DiffSummary $srcFile.FullName $dstFile
-        } else {
-            Write-Host "  [NEW FILE]" -ForegroundColor Yellow
-        }
+        $frameworkFiles = Get-ChildItem -Recurse -File $srcRoot
+        foreach ($srcFile in $frameworkFiles) {
+            $rel     = $srcFile.FullName.Substring($srcRoot.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $dstRoot $rel
 
-        do {
-            $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
-            if ($choice.ToLower() -eq "d") {
-                Show-DiffFull $srcFile.FullName $dstFile
-            }
-        } while ($choice.ToLower() -eq "d")
+            Write-Host ""
+            Write-Host "--- [$agent] $rel ---" -ForegroundColor White
 
-        switch ($choice.ToLower()) {
-            "a" {
-                New-Item -ItemType Directory -Force -Path (Split-Path $dstFile) | Out-Null
-                Copy-Item -Force $srcFile.FullName $dstFile
-                Write-Ok "Accepted"
-                $accepted++
+            if (Test-Path $dstFile) {
+                $srcContent = Get-Content $srcFile.FullName -Raw
+                $dstContent = Get-Content $dstFile -Raw
+
+                # For identity.md, compare without USER_LANGUAGE placeholder differences
+                if ($srcFile.Name -eq "identity.md") {
+                    # Normalize both by removing the placeholder for comparison
+                    $srcNorm = $srcContent -replace "{{USER_LANGUAGE}}", "(user-language)"
+                    $dstNorm = $dstContent -replace "[^{{]{{USER_LANGUAGE}}[^}}]|[^\w][\w]+[^\w]", "(user-language)"
+                    if ($srcNorm -eq $dstNorm) {
+                        Write-Skip "Identical (excluding USER_LANGUAGE) — skipping"
+                        continue
+                    }
+                } else {
+                    $srcHash = (Get-FileHash $srcFile.FullName -Algorithm MD5).Hash
+                    $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
+                    if ($srcHash -eq $dstHash) {
+                        Write-Skip "Identical — skipping"
+                        continue
+                    }
+                }
+                Show-DiffSummary $srcFile.FullName $dstFile
+            } else {
+                Write-Host "  [NEW FILE]" -ForegroundColor Yellow
             }
-            "r" {
-                Write-Host "  Rejected." -ForegroundColor Red
-                $rejected++
-            }
-            default {
-                Write-Skip "Skipped"
-                $skipped++
+
+            do {
+                $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
+                if ($choice.ToLower() -eq "d") {
+                    Show-DiffFull $srcFile.FullName $dstFile
+                }
+            } while ($choice.ToLower() -eq "d")
+
+            switch ($choice.ToLower()) {
+                "a" {
+                    New-Item -ItemType Directory -Force -Path (Split-Path $dstFile) | Out-Null
+                    # For identity.md, don't interpolate during update (preserve existing user language choice)
+                    Copy-Item -Force $srcFile.FullName $dstFile
+                    Write-Ok "Accepted"
+                    $accepted++
+                }
+                "r" {
+                    Write-Host "  Rejected." -ForegroundColor Red
+                    $rejected++
+                }
+                default {
+                    Write-Skip "Skipped"
+                    $skipped++
+                }
             }
         }
     }
 
-    # Check CLAUDE.md template hash
-    $claudeMd    = Join-Path $TARGET ".claude\CLAUDE.md"
-    # Stamp new version
+    # Stamp new version if any changes were accepted
     if ($accepted -gt 0) {
         Write-VersionStamp
         Write-Ok "Stamped version $FRAMEWORK_VERSION"
@@ -320,7 +340,7 @@ if ($help) {
     Write-Host ""
     Write-Host "Usage:" -ForegroundColor White
     Write-Host "  init-ai                                    Bootstrap a new project"
-    Write-Host "  init-ai -ProjectName foo -Language English  Bootstrap (non-interactive)"
+    Write-Host "  init-ai -Language English                  Bootstrap (non-interactive language)"
     Write-Host "  init-ai --update                           Update an existing project"
     Write-Host "  init-ai --version                          Show framework version"
     Write-Host "  init-ai --changelog                        Show full changelog"

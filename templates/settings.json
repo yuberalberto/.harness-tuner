@@ -1,0 +1,52 @@
+{
+  "hooks": [
+    {
+      "type": "command",
+      "trigger": "SessionStart",
+      "command": "pwsh -File .claude/hooks/engram-session-start.ps1"
+    },
+    {
+      "type": "command",
+      "trigger": "Stop",
+      "command": "pwsh -File .claude/hooks/engram-session-end.ps1"
+    },
+    {
+      "type": "command",
+      "trigger": "PostToolUse(Edit|Write|NotebookEdit)",
+      "command": "pwsh -File .claude/hooks/format-post-edit.ps1"
+    },
+    {
+      "type": "command",
+      "trigger": "PreToolUse(Bash)",
+      "command": "pwsh -File .claude/hooks/git-guardrails-pre-bash.ps1"
+    }
+  ],
+  "mcpServers": {
+    "engram": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@engram/mcp-server"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  },
+  "permissions": {
+    "allowedTools": [
+      "Read(**)",
+      "Glob(**)",
+      "Grep(**)",
+      "Bash(ls *)",
+      "Bash(pwd)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git branch)",
+      "mcp__engram__mem_search",
+      "mcp__engram__mem_context",
+      "mcp__engram__mem_get_observation"
+    ]
+  }
+}

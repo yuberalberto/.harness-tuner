@@ -1,117 +1,107 @@
-# init-ai
-
-Bootstrap any project with a structured AI development methodology.
-Works with Claude Code + Cascade (Windsurf). Future-proof for other agents.
+Harness-tuner is an opinionated 5-layer Claude Code harness configuration: skills + hooks + MCP + rules + subagent recommendations, distributed per-project.
 
 ---
 
-## Quick start
+## Install
 
-### Step 1 — Install (once per machine)
-
-Clone this repo and run the installer:
+**One-liner** (recommended):
 
 ```powershell
-git clone https://github.com/your-username/init-ai.git $env:USERPROFILE\init-ai
-& "$env:USERPROFILE\init-ai\install.ps1"
+iwr -useb https://raw.githubusercontent.com/yuberalberto/.harness-tuner/main/get.ps1 | iex
 ```
 
-This sets up Claude Code skill shortcuts and adds the `init-ai` command to your shell. Reload your profile to use it immediately:
+**Manual**:
+
+```powershell
+git clone https://github.com/yuberalberto/.harness-tuner.git $env:USERPROFILE\.harness-tuner
+& "$env:USERPROFILE\.harness-tuner\install.ps1"
+```
+
+After either path, reload your shell profile:
 
 ```powershell
 . $PROFILE
 ```
 
-### Step 2 — Bootstrap a new project
+## Quick start
 
-Navigate to your project directory, then run:
-
-```powershell
-init-ai
-```
-
-Prompts for project name (defaults to the current folder name) and chat language.
-Copies the methodology to `.windsurf/` and generates `.claude/CLAUDE.md`.
-
-To skip the prompts:
+In any project directory:
 
 ```powershell
-init-ai -ProjectName "my-app" -Language "English"
+ht init
 ```
 
-### Step 3 — Update an existing project
+This deploys all five harness layers into `.claude/`. Run `ht --help` to see all subcommands.
+
+## What you get
+
+`ht init` copies a curated set of files into your project's `.claude/`:
+
+**Rules (3)** — minimal, always-on, loaded every session:
+- `identity.md` — role, language, anti-sycophancy, permission protocol
+- `engram.md` — when and what to save to persistent memory
+- `sdd-process.md` — task-type → skill routing table
+
+**Skills (12)** — lazy-loaded, invoked on demand:
+- `grill-me` — generic idea interrogation, no SDD commitment
+- `grill-with-docs` — SDD entry point; updates CONTEXT.md, proposes ADRs
+- `to-prd` — synthesize conversation into a PRD under `.specs/<feature>/`
+- `to-issues` — decompose PRD into vertical-slice issues with dependency graph
+- `tdd-cycle` — Red-Green-Refactor with Engram saves and spec updates
+- `code-standards` — style and naming conventions, best used at Refactor step
+- `inspect-harness` — reports loaded rules, skills, hooks, and MCPs
+- `audit` — pre-push audit: deps, linters, secrets, dangerous patterns, tests
+- `review` — branch review: correctness, quality, security, coverage
+- `git-flow` — semantic commit, push, optional PR
+- `zoom-out` — step back and map architecture from domain glossary
+- `improve-codebase-architecture` — find deepening opportunities; propose refactors
+
+**Hooks (4)** — scripts on Claude Code lifecycle events, zero agent-context cost:
+- `engram-session-start` — calls `mem_context` at session start
+- `engram-session-end` — calls `mem_session_summary` at Stop
+- `format-post-edit` — runs prettier / ruff / gofmt after Edit or Write
+- `git-guardrails-pre-bash` — blocks destructive git commands before execution
+
+**MCP servers** — declared in `.claude/settings.json`, merged non-destructively on init:
+- `engram` (required) — cross-session memory via `mem_*` tools
+- `context7` (recommended) — up-to-date library documentation lookup
+
+Server binaries are the user's responsibility (treat like git or node).
+
+## Updating
+
+Update the current project against the latest templates:
 
 ```powershell
-init-ai -update
+ht update
 ```
 
-The updater:
-1. Compares your project's installed version against the latest
-2. Shows the changelog entries since your version
-3. For each changed file: shows a summary and prompts Accept (a), Reject (r), Skip (s), or Diff (d)
-4. Stamps the new version in `.windsurf/.init-ai-version`
+Pull the latest framework version to your local clone:
 
----
-
-## What it provides
-
-- **Spec-Driven + Test-Driven Development** (SDD+TDD)
-- **Engram memory protocol** — persistent context across sessions
-- **Permission-based collaboration** — agents ask before acting
-- **14 workflows** covering the full development lifecycle
-- **3 SDD skills** for spec creation, validation, and test execution
-- **CLAUDE.md template** with critical rules inline + workflow references
-
----
-
-## Versioning
-
-The framework uses [semantic versioning](https://semver.org/). See [CHANGELOG.md](CHANGELOG.md) for the full history.
-
-Each bootstrapped project stores:
-- `.windsurf/.init-ai-version` — framework version last applied (commit this so teammates know)
-
----
-
-## Directory structure
-
-```
-init-ai/
-├── init-ai.ps1               # Bootstrap + update script
-├── install.ps1               # One-time PC setup (Claude Code junctions)
-├── VERSION                   # Current framework version (semver)
-├── CHANGELOG.md              # Release history
-│
-├── methodology/              # Source of truth (agent-agnostic)
-│   ├── rules/                # code-standards, sdd-process, security, testing
-│   ├── workflows/            # 15 development workflows
-│   └── skills/               # create-spec, run-tests, validate-spec
-│
-├── adapters/
-│   ├── cascade/              # (empty — methodology/ is already Cascade format)
-│   └── claude-code/
-│       ├── CLAUDE.md.template
-│       └── skills/           # Thin wrappers: one per workflow + init-ai meta
-│
-└── templates/
-    └── specs/                # Empty specs/ directory seed
+```powershell
+ht self-update
 ```
 
+## Why this exists
+
+Claude Code exposes five distinct extension points. Most projects use one or two. harness-tuner is an opinion about how all five should be composed: three minimal always-on rules (not eight), mechanical work automated as hooks with zero context cost, long exploration delegated to subagents to keep the main session clean, and everything scoped to the project workspace — no global junctions, no hidden state. The full rationale is in [docs/philosophy.md](docs/philosophy.md). Architecture decisions are recorded in [docs/adr/](docs/adr/).
+
+## Supported agents
+
+**Claude Code only.** Wrappers for other agents (Cursor, Windsurf, Antigravity) may come in a later release.
+
+## License
+
+No license file yet — contributions are accepted on an as-is basis until one is added. See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Contributing
+
+Open an issue or PR on GitHub. No formal CONTRIBUTING guide yet.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
-## Methodology overview
-
-### New features → `/spec-to-code`
-Write a spec, get approval, implement each task via TDD, archive the spec.
-
-### Bug fixes → `/tdd-cycle`
-Red → Green → Refactor → Edge cases → Save observation.
-
-### Code quality → `/simplify`, `/review`
-Post-implementation cleanup and branch review (correctness, quality, security, coverage).
-
-### Project health → `/audit`
-Pre-push audit: deps, linters, secrets, dangerous patterns, tests.
-
-### Context continuity → `/handoff`, `/restore-context`
-Save and restore thematic context via Engram across sessions.
+*Previously known as init-ai.*

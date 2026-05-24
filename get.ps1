@@ -9,8 +9,8 @@
 
     Steps:
     1. Check git is installed; exit 1 if missing.
-    2. Clone or pull the harness-tuner repo to ~/harness-tuner.
-    3. Run ~/harness-tuner/install.ps1 to configure the shell alias.
+    2. Clone or pull the harness-tuner repo to ~/.harness-tuner.
+    3. Run ~/.harness-tuner/install.ps1 to configure the shell alias.
     4. Print success message and next-step hint.
 
 .EXAMPLE
@@ -31,11 +31,11 @@ if (-not $gitCmd) {
 $repoUrl = if ($env:HARNESS_TUNER_REPO) {
     $env:HARNESS_TUNER_REPO
 } else {
-    'https://github.com/yuberalberto/harness-tuner.git'
+    'https://github.com/yuberalberto/.harness-tuner.git'
 }
 
 # Step 3: Define target directory
-$target = Join-Path $env:USERPROFILE 'harness-tuner'
+$target = Join-Path $env:USERPROFILE '.harness-tuner'
 
 # Step 4: Clone or update the repository
 if ((Test-Path $target) -and (Test-Path "$target/.git")) {

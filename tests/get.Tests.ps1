@@ -20,7 +20,7 @@ if ($env:CI_NETWORK_TESTS) {
                 $LASTEXITCODE | Should -Be 0
 
                 # Verify the target directory exists and is a git repository
-                $targetDir = Join-Path $env:USERPROFILE 'harness-tuner'
+                $targetDir = Join-Path $env:USERPROFILE '.harness-tuner'
                 Test-Path $targetDir | Should -Be $true
                 Test-Path "$targetDir/.git" | Should -Be $true
             } finally {

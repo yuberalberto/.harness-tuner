@@ -4,11 +4,11 @@
 
 .DESCRIPTION
     Installs a shell alias function in $PROFILE.CurrentUserAllHosts that delegates
-    to ~/harness-tuner/harness-tuner.ps1. Idempotent: skips if `ht` function
+    to ~/.harness-tuner/harness-tuner.ps1. Idempotent: skips if `ht` function
     already exists in profile.
 
 .EXAMPLE
-    & "$env:USERPROFILE\harness-tuner\install.ps1"
+    & "$env:USERPROFILE\.harness-tuner\install.ps1"
 #>
 
 param(
@@ -27,7 +27,7 @@ if ([string]::IsNullOrEmpty($ProfilePath)) {
 $aliasBlock = @'
 
 # harness-tuner - CLI alias
-function ht { & "$env:USERPROFILE\harness-tuner\harness-tuner.ps1" @args }
+function ht { & "$env:USERPROFILE\.harness-tuner\harness-tuner.ps1" @args }
 '@
 
 # Check if ht function already exists in profile

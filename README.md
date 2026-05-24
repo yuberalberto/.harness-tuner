@@ -7,14 +7,14 @@ Harness-tuner is an opinionated 5-layer Claude Code harness configuration: skill
 **One-liner** (recommended):
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/yuberalberto/harness-tuner/main/get.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/yuberalberto/.harness-tuner/main/get.ps1 | iex
 ```
 
 **Manual**:
 
 ```powershell
-git clone https://github.com/yuberalberto/harness-tuner.git $env:USERPROFILE\harness-tuner
-& "$env:USERPROFILE\harness-tuner\install.ps1"
+git clone https://github.com/yuberalberto/.harness-tuner.git $env:USERPROFILE\.harness-tuner
+& "$env:USERPROFILE\.harness-tuner\install.ps1"
 ```
 
 After either path, reload your shell profile:

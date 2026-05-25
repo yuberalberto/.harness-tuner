@@ -23,3 +23,8 @@ scratch/
 
 # Reference material (not part of the framework)
 skills by Matt Pocock/
+
+# engram-lite database (config.json is safe to commit)
+.engram-lite/*.db
+.engram-lite/*.db-wal
+.engram-lite/*.db-shm

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "engram-lite": {
+      "args": [
+        "mcp",
+        "--tools=agent"
+      ],
+      "command": "engram-lite",
+      "env": {
+        "ENGRAM_DATA_DIR": "C:\\Users\\yuber\\OneDrive\\Documents\\Dev\\harness-tuner\\.engram-lite"
+      }
+    }
+  }
+}

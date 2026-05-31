@@ -1,0 +1,8 @@
+[mcp_servers."engram-lite"]
+command = "engram-lite"
+args = ["mcp", "--tools=agent"]
+cwd = "C:/Users/yuber/OneDrive/Documents/Dev/harness-tuner"
+enabled = true
+
+[mcp_servers."engram-lite".env]
+ENGRAM_DATA_DIR = "C:/Users/yuber/OneDrive/Documents/Dev/harness-tuner/.engram-lite"

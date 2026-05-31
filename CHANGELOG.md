@@ -4,6 +4,17 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-05-31
+
+### Added
+
+- **Codex support**: `ht init -Agent codex` deploys harness layers to `.codex/` using `templates-codex/` for rules/settings and the canonical Claude skills adapted with Codex wording.
+- **Codex updates**: `ht update -Agent codex` updates `.codex/` with interactive review or `--force`.
+
+### Changed
+
+- **Language identity policy**: agents now reply to the user in the user's current language while keeping all project artifacts strictly in English unless translation/localization content is explicitly requested.
+
 ## [1.1.0] — 2026-05-24
 
 ### Added

@@ -1,11 +1,11 @@
 # Harness-Tuner Domain
 
-Harness-tuner is a 5-layer Claude Code configuration framework distributed per-project via a CLI tool (`ht`). This context captures the domain language used across skills, rules, and documentation.
+Harness-tuner is a 5-layer AI coding harness framework distributed per-project via a CLI tool (`ht`). This context captures the domain language used across skills, rules, and documentation.
 
 ## Language
 
 **Harness**:
-The full set of Claude Code (or Cascade) configuration layers installed in a project: rules, skills, hooks, MCP servers, and subagent recommendations.
+The full set of Claude Code, Cascade, or Codex configuration layers installed in a project: rules, skills, hooks, MCP servers, and subagent recommendations.
 _Avoid_: config, setup, scaffold
 
 **Layer**:
@@ -13,11 +13,11 @@ One of the five extension points of Claude Code — rules, skills, hooks, MCP se
 _Avoid_: component, module (when referring to Claude Code extension points)
 
 **Template**:
-Source files in `templates-claude/` or `templates-cascade/` that `ht init` / `ht update` deploy into a target project. A template is the canonical version; the deployed copy is the project's installed version.
+Source files in `templates-claude/`, `templates-cascade/`, or `templates-codex/` that `ht init` / `ht update` deploy into a target project. A template is the canonical version; the deployed copy is the project's installed version.
 _Avoid_: scaffold, boilerplate
 
 **Skill**:
-An on-demand slash command (`/skill-name`) loaded lazily by Claude Code. Lives in `.claude/skills/<name>/SKILL.md`. Zero context cost until invoked.
+An on-demand workflow instruction loaded lazily by the agent. Lives in `.claude/skills/<name>/SKILL.md` for Claude Code, `.windsurf/skills/<name>/SKILL.md` for Cascade, or `.codex/skills/<name>/SKILL.md` for Codex. Zero context cost until invoked.
 _Avoid_: command, plugin, tool (when referring to Claude Code skills)
 
 **SDD (Spec-Driven Development)**:

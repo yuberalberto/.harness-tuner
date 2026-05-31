@@ -35,6 +35,7 @@ $HARNESS_TUNER_HOME = $PSScriptRoot
 $TARGET             = (Get-Location).Path
 $VERSION_STAMP      = Join-Path (Join-Path $TARGET ".claude") ".harness-tuner-version"
 $VERSION_STAMP_CASCADE = Join-Path (Join-Path $TARGET ".windsurf") ".harness-tuner-version"
+$VERSION_STAMP_CODEX = Join-Path (Join-Path $TARGET ".codex") ".harness-tuner-version"
 
 function Get-FrameworkVersion {
     $vFile = Join-Path $HARNESS_TUNER_HOME "VERSION"
@@ -71,6 +72,7 @@ function Show-Help([bool]$Detailed = $false) {
     Write-Host "USAGE:" -ForegroundColor White
     Write-Host "  ht                     Show this help summary"
     Write-Host "  ht init                Bootstrap current project (.claude/ setup)"
+    Write-Host "  ht init -Agent codex   Bootstrap current project (.codex/ setup)"
     Write-Host "  ht update              Interactive diff/merge templates-claude/ -> .claude/"
     Write-Host "  ht self-update         git pull inside HARNESS_TUNER_HOME"
     Write-Host "  ht --version           Print framework version"
@@ -87,6 +89,11 @@ function Show-Help([bool]$Detailed = $false) {
         Write-Host "      Interpolates {{USER_LANGUAGE}} in identity.md."
         Write-Host "      Aborts if .claude/.harness-tuner-version already exists."
         Write-Host "      Prompts per-file if a foreign .claude/ (no version marker) is detected."
+        Write-Host ""
+        Write-Host "  init -Agent codex [-Language <lang>]" -ForegroundColor White
+        Write-Host "      Copies templates-codex/rules/ and settings.json to .codex/."
+        Write-Host "      Copies templates-claude/skills/ to .codex/skills/ with Codex wording."
+        Write-Host "      Aborts if .codex/.harness-tuner-version already exists."
         Write-Host ""
         Write-Host "  update [--force]" -ForegroundColor White
         Write-Host "      Compares templates-claude/ with project .claude/ and shows summary table."
@@ -374,16 +381,62 @@ function Copy-TemplateFile([string]$SrcFile, [string]$DstFile, [string]$UserLang
     New-Item -ItemType Directory -Force -Path (Split-Path $DstFile) | Out-Null
     $fileName = Split-Path $SrcFile -Leaf
 
-    if ($fileName -eq "identity.md" -and $UserLanguage) {
+    if ($UserLanguage) {
         $content  = Get-Content $SrcFile -Raw -Encoding UTF8
         $compiled = $content -replace [regex]::Escape("{{USER_LANGUAGE}}"), $UserLanguage
-        Set-Content -Path $DstFile -Value $compiled -Encoding UTF8
-        Write-Ok "Copied $fileName (interpolated USER_LANGUAGE='$UserLanguage')"
+        if ($content -ne $compiled) {
+            Set-Content -Path $DstFile -Value $compiled -Encoding UTF8 -NoNewline
+            Write-Ok "Copied $fileName (interpolated USER_LANGUAGE='$UserLanguage')"
+        }
+        else {
+            Copy-Item -Force $SrcFile $DstFile
+            Write-Ok "Copied $fileName"
+        }
     }
     else {
         Copy-Item -Force $SrcFile $DstFile
         Write-Ok "Copied $fileName"
     }
+}
+
+function Copy-CodexTemplateFile([string]$SrcFile, [string]$DstFile, [string]$UserLanguage) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $DstFile) | Out-Null
+    $fileName = Split-Path $SrcFile -Leaf
+    $compiled = Get-CompiledCodexSkillContent $SrcFile $UserLanguage
+    Set-Content -Path $DstFile -Value $compiled -Encoding UTF8 -NoNewline
+    Write-Ok "Copied $fileName"
+}
+
+function Get-CodexInstalledLanguage([string]$CodexDir) {
+    $identityPath = Join-Path $CodexDir "rules\identity.md"
+    if (-not (Test-Path $identityPath)) {
+        return ""
+    }
+
+    $content = Get-Content $identityPath -Raw -Encoding UTF8
+    if ($content -match "Chat with the user in ([^.\r\n]+)") {
+        return $matches[1].Trim()
+    }
+    if ($content -match "Language:\s*([^\r\n]+)") {
+        return $matches[1].Trim()
+    }
+    return ""
+}
+
+function Get-CompiledTemplateContent([string]$SrcFile, [string]$UserLanguage) {
+    $content = Get-Content $SrcFile -Raw -Encoding UTF8
+    if ($UserLanguage) {
+        return ($content -replace [regex]::Escape("{{USER_LANGUAGE}}"), $UserLanguage)
+    }
+    return $content
+}
+
+function Get-CompiledCodexSkillContent([string]$SrcFile, [string]$UserLanguage) {
+    $compiled = Get-CompiledTemplateContent $SrcFile $UserLanguage
+    return ($compiled `
+        -creplace "Claude Code", "Codex" `
+        -creplace "Claude", "Codex" `
+        -creplace "\.claude", ".codex")
 }
 
 # ---------------------------------------------------------------------------
@@ -698,6 +751,111 @@ function Invoke-BootstrapCascade {
     Write-Host ""
     Write-Host "  Suggested next step:" -ForegroundColor White
     Write-Host "  git add .windsurf && git commit -m 'chore: init harness-tuner for Cascade'" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: init (Codex)
+# ---------------------------------------------------------------------------
+
+function Invoke-BootstrapCodex {
+    $codexDir     = Join-Path $TARGET ".codex"
+    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-codex"
+    $skillsDir    = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
+
+    if (Test-Path $VERSION_STAMP_CODEX) {
+        Write-Err "Already installed (v$(Get-Content $VERSION_STAMP_CODEX -Raw).Trim())."
+        Write-Host "  Run 'ht update -Agent codex' to apply template changes." -ForegroundColor Yellow
+        exit 1
+    }
+
+    $isForeign = (Test-Path $codexDir) -and (-not (Test-Path $VERSION_STAMP_CODEX))
+
+    if ($isForeign) {
+        Write-Warn "Foreign .codex/ detected (no harness-tuner marker)."
+        Write-Host "  Files that collide with templates will require your approval." -ForegroundColor Yellow
+    }
+
+    Write-Header "Bootstrapping $TARGET for Codex"
+
+    $userLanguage = $Language
+    if (-not $userLanguage) {
+        $userLanguage = Read-Host "User chat language (e.g. Spanish, English)"
+    }
+
+    if (-not (Test-Path $templatesDir)) {
+        Write-Err "templates-codex/ directory not found at: $templatesDir"
+        exit 1
+    }
+
+    if (-not (Test-Path $skillsDir)) {
+        Write-Err "templates-claude/skills/ directory not found at: $skillsDir"
+        exit 1
+    }
+
+    $collisions = 0
+
+    $templateFiles = Get-ChildItem -Recurse -File $templatesDir
+    foreach ($srcItem in $templateFiles) {
+        $rel     = $srcItem.FullName.Substring($templatesDir.Length).TrimStart('\', '/')
+        $dstFile = Join-Path $codexDir $rel
+
+        if ($isForeign -and (Test-Path $dstFile)) {
+            $collisions++
+            $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile $rel
+            if ($accepted) {
+                Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+            }
+            else {
+                Write-Skip "Rejected: $rel"
+            }
+        }
+        else {
+            Copy-TemplateFile $srcItem.FullName $dstFile $userLanguage
+        }
+    }
+
+    $skillDirs = Get-ChildItem -Directory $skillsDir
+    foreach ($skillDir in $skillDirs) {
+        $skillSrc = $skillDir.FullName
+        $skillDst = Join-Path $codexDir "skills\$($skillDir.Name)"
+
+        $skillFiles = Get-ChildItem -Recurse -File $skillSrc
+        foreach ($srcItem in $skillFiles) {
+            $rel     = $srcItem.FullName.Substring($skillSrc.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $skillDst $rel
+
+            if ($isForeign -and (Test-Path $dstFile)) {
+                $collisions++
+                $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile "skills/$($skillDir.Name)/$rel"
+                if ($accepted) {
+                    Copy-CodexTemplateFile $srcItem.FullName $dstFile $userLanguage
+                }
+                else {
+                    Write-Skip "Rejected: skills/$($skillDir.Name)/$rel"
+                }
+            }
+            else {
+                Copy-CodexTemplateFile $srcItem.FullName $dstFile $userLanguage
+            }
+        }
+    }
+
+    $dir = Split-Path $VERSION_STAMP_CODEX
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    Set-Content -Path $VERSION_STAMP_CODEX -Value $FRAMEWORK_VERSION -Encoding UTF8
+    Write-Ok "Stamped version $FRAMEWORK_VERSION"
+
+    if ($isForeign) {
+        Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION) — $collisions collision(s) reviewed"
+    }
+    else {
+        Write-Header "Bootstrap complete (v$FRAMEWORK_VERSION)"
+    }
+
+    Write-Host ""
+    Write-Host "  Suggested next step:" -ForegroundColor White
+    Write-Host "  git add .codex && git commit -m 'chore: init harness-tuner for Codex'" -ForegroundColor DarkGray
     Write-Host ""
 }
 
@@ -1262,6 +1420,228 @@ function Invoke-UpdateCascade {
 }
 
 # ---------------------------------------------------------------------------
+# Subcommand: update (Codex)
+# ---------------------------------------------------------------------------
+
+function Invoke-UpdateCodex {
+    param(
+        [switch]$Force
+    )
+
+    $codexDir     = Join-Path $TARGET ".codex"
+    $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-codex"
+    $skillsDir    = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
+
+    if (-not (Test-Path $codexDir)) {
+        Write-Err "Project not initialized (.codex/ not found). Run 'ht init -Agent codex' first."
+        exit 1
+    }
+
+    if (Test-Path $VERSION_STAMP_CODEX) {
+        $projectVersion = (Get-Content $VERSION_STAMP_CODEX -Raw).Trim()
+    }
+    else {
+        $projectVersion = $null
+    }
+    if ($projectVersion) {
+        Write-Host "  Project version : v$projectVersion" -ForegroundColor White
+    }
+    else {
+        Write-Warn "No version stamp found. Project may have been bootstrapped before harness-tuner."
+    }
+    Write-Host "  Framework version: v$FRAMEWORK_VERSION" -ForegroundColor White
+
+    Write-Header "Updating $TARGET for Codex"
+
+    $userLanguage = $Language
+    if (-not $userLanguage) {
+        $userLanguage = Get-CodexInstalledLanguage $codexDir
+    }
+
+    $pendingChanges = @()
+
+    if (Test-Path $templatesDir) {
+        $templateFiles = Get-ChildItem -Recurse -File $templatesDir
+        foreach ($srcItem in $templateFiles) {
+            $rel     = $srcItem.FullName.Substring($templatesDir.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $codexDir $rel
+
+            if (Test-Path $dstFile) {
+                $srcContent = Get-CompiledTemplateContent $srcItem.FullName $userLanguage
+                $dstContent = Get-Content $dstFile -Raw -Encoding UTF8
+                if ($srcContent -eq $dstContent) {
+                    continue
+                }
+                $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                $pendingChanges += @{
+                    File = $rel
+                    Action = "update"
+                    Added = $summary.Added
+                    Removed = $summary.Removed
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsCodexSkill = $false
+                }
+            }
+            else {
+                $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                $pendingChanges += @{
+                    File = $rel
+                    Action = "new"
+                    Added = $srcLines
+                    Removed = 0
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsCodexSkill = $false
+                }
+            }
+        }
+    }
+
+    if (Test-Path $skillsDir) {
+        $skillDirs = Get-ChildItem -Directory $skillsDir
+        foreach ($skillDir in $skillDirs) {
+            $skillSrc = $skillDir.FullName
+            $skillDst = Join-Path $codexDir "skills\$($skillDir.Name)"
+
+            $skillFiles = Get-ChildItem -Recurse -File $skillSrc
+            foreach ($srcItem in $skillFiles) {
+                $rel     = $srcItem.FullName.Substring($skillSrc.Length).TrimStart('\', '/')
+                $dstFile = Join-Path $skillDst $rel
+
+                if (Test-Path $dstFile) {
+                    $srcContent = Get-CompiledCodexSkillContent $srcItem.FullName $userLanguage
+                    $dstContent = Get-Content $dstFile -Raw -Encoding UTF8
+                    if ($srcContent -eq $dstContent) {
+                        continue
+                    }
+                    $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                    $pendingChanges += @{
+                        File = "skills/$($skillDir.Name)/$rel"
+                        Action = "update"
+                        Added = $summary.Added
+                        Removed = $summary.Removed
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsCodexSkill = $true
+                    }
+                }
+                else {
+                    $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                    $pendingChanges += @{
+                        File = "skills/$($skillDir.Name)/$rel"
+                        Action = "new"
+                        Added = $srcLines
+                        Removed = 0
+                        SrcFile = $srcItem.FullName
+                        DstFile = $dstFile
+                        IsCodexSkill = $true
+                    }
+                }
+            }
+        }
+    }
+
+    Show-ChangeSummaryTable $pendingChanges
+
+    if ($pendingChanges.Count -eq 0) {
+        Write-Ok "No changes to apply."
+        return
+    }
+
+    $applyAll = $false
+    if ($Force) {
+        $applyAll = $true
+    }
+    else {
+        do {
+            $choice = Read-Host "  Apply all changes? [Y/n/review]"
+            $choice = $choice.Trim().ToLower()
+        } while ($choice -notin @("", "y", "n", "review"))
+
+        switch ($choice) {
+            "" { $applyAll = $true }
+            "y" { $applyAll = $true }
+            "n" {
+                Write-Host "  Aborted — no changes applied." -ForegroundColor Yellow
+                return
+            }
+            "review" {
+                $applyAll = $false
+            }
+        }
+    }
+
+    $accepted = 0
+    $rejected = 0
+    $skipped  = 0
+
+    if ($applyAll) {
+        foreach ($change in $pendingChanges) {
+            if ($change.IsCodexSkill) {
+                Copy-CodexTemplateFile $change.SrcFile $change.DstFile $userLanguage
+            }
+            else {
+                Copy-TemplateFile $change.SrcFile $change.DstFile $userLanguage
+            }
+            Write-Ok "Accepted: $($change.File)"
+            $accepted++
+        }
+    }
+    else {
+        foreach ($change in $pendingChanges) {
+            Write-Host ""
+            Write-Host "--- $($change.File) ---" -ForegroundColor White
+            if ($change.Action -eq "update") {
+                Show-DiffSummary $change.SrcFile $change.DstFile
+            }
+            else {
+                Write-Host "  [NEW FILE]" -ForegroundColor Yellow
+            }
+
+            do {
+                $choice = Read-Host "  Accept (a), Reject (r), Skip (s), Diff (d)? [a/r/s/d]"
+                if ($choice -eq "d" -or $choice -eq "D") {
+                    Show-DiffFull $change.SrcFile $change.DstFile
+                }
+            } while ($choice -eq "d" -or $choice -eq "D")
+
+            switch ($choice.ToLower()) {
+                "a" {
+                    if ($change.IsCodexSkill) {
+                        Copy-CodexTemplateFile $change.SrcFile $change.DstFile $userLanguage
+                    }
+                    else {
+                        Copy-TemplateFile $change.SrcFile $change.DstFile $userLanguage
+                    }
+                    Write-Ok "Accepted: $($change.File)"
+                    $accepted++
+                }
+                "r" {
+                    Write-Err "Rejected: $($change.File)"
+                    $rejected++
+                }
+                default {
+                    Write-Skip "Skipped: $($change.File)"
+                    $skipped++
+                }
+            }
+        }
+    }
+
+    if ($accepted -gt 0) {
+        $dir = Split-Path $VERSION_STAMP_CODEX
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+        Set-Content -Path $VERSION_STAMP_CODEX -Value $FRAMEWORK_VERSION -Encoding UTF8
+        Write-Ok "Stamped version $FRAMEWORK_VERSION"
+    }
+
+    Write-Header "Update complete (v$FRAMEWORK_VERSION)"
+    Write-Host "  Accepted: $accepted  |  Rejected: $rejected  |  Skipped: $skipped"
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
 # Subcommand: self-update
 # ---------------------------------------------------------------------------
 
@@ -1317,16 +1697,24 @@ elseif ($Help) {
     Show-Help -Detailed $true
 }
 elseif ($Command -eq "init") {
-    if ($Agent -eq "cascade") {
+    $normalizedAgent = $Agent.ToLowerInvariant()
+    if ($normalizedAgent -eq "cascade") {
         Invoke-BootstrapCascade
+    }
+    elseif ($normalizedAgent -eq "codex") {
+        Invoke-BootstrapCodex
     }
     else {
         Invoke-Bootstrap
     }
 }
 elseif ($Command -eq "update") {
-    if ($Agent -eq "cascade") {
+    $normalizedAgent = $Agent.ToLowerInvariant()
+    if ($normalizedAgent -eq "cascade") {
         Invoke-UpdateCascade -Force:$Force
+    }
+    elseif ($normalizedAgent -eq "codex") {
+        Invoke-UpdateCodex -Force:$Force
     }
     else {
         Invoke-Update -Force:$Force

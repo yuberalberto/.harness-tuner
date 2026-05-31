@@ -96,6 +96,29 @@ Describe "harness-tuner.ps1 — setup" {
             return $tplDir
         }
 
+        function New-StubTemplatesCodex([string]$BaseDir) {
+            $tplDir = Join-Path $BaseDir "templates-codex"
+
+            $rulesDir = Join-Path $tplDir "rules"
+            New-Item -ItemType Directory -Force -Path $rulesDir | Out-Null
+            Set-Content -Path (Join-Path $rulesDir "identity.md") -Value "# Codex Identity`nLanguage: {{USER_LANGUAGE}}" -Encoding UTF8
+            Set-Content -Path (Join-Path $rulesDir "engram.md") -Value "# Codex Engram" -Encoding UTF8
+
+            $settingsJson = @'
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram-ai/mcp-server"]
+    }
+  }
+}
+'@
+            Set-Content -Path (Join-Path $tplDir "settings.json") -Value $settingsJson -Encoding UTF8
+
+            return $tplDir
+        }
+
         # Helper: run harness-tuner.ps1 with a synthetic HARNESS_TUNER_HOME and working dir.
         # Returns a hashtable: ExitCode, Output (string[]).
         function Invoke-HT {
@@ -798,6 +821,92 @@ Describe "harness-tuner.ps1 — legacy .windsurf/ ignored" {
             $r.ExitCode | Should -Be 0
             $marker = Join-Path $tempProject.FullName ".claude" ".harness-tuner-version"
             Test-Path $marker | Should -Be $true
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Describe: ht init/update -Agent codex
+# ---------------------------------------------------------------------------
+Describe "harness-tuner.ps1 — ht init/update -Agent codex" {
+
+    It "should create .codex/.harness-tuner-version in a fresh project" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCodex $tempHome.FullName | Out-Null
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("init", "-Agent", "codex", "-Language", "Spanish") `
+                -StdinLines  @()
+
+            $marker = Join-Path $tempProject.FullName ".codex" ".harness-tuner-version"
+            Test-Path $marker | Should Be $true
+            (Get-Content $marker -Raw).Trim() | Should Be "1.0.0"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should copy Codex rules and transformed skills into .codex/" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCodex $tempHome.FullName | Out-Null
+
+        try {
+            Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("init", "-Agent", "codex", "-Language", "Spanish") `
+                -StdinLines  @() | Out-Null
+
+            $codexDir = Join-Path $tempProject.FullName ".codex"
+            Test-Path (Join-Path $codexDir "rules" "identity.md") | Should Be $true
+            Test-Path (Join-Path $codexDir "settings.json") | Should Be $true
+            Test-Path (Join-Path $codexDir "skills" "git-flow" "SKILL.md") | Should Be $true
+
+            $skillContent = Get-Content (Join-Path $codexDir "skills" "git-flow" "SKILL.md") -Raw
+            $skillContent | Should Match "Codex"
+            $skillContent | Should Not Match "Claude"
+        }
+        finally {
+            Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -Force $tempProject.FullName -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "should update Codex skills from templates-claude/skills/" {
+        $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
+        $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
+        New-StubTemplates $tempHome.FullName | Out-Null
+        New-StubTemplatesCodex $tempHome.FullName | Out-Null
+
+        $codexDir = Join-Path $tempProject.FullName ".codex"
+        $skillDir = Join-Path $codexDir "skills" "git-flow"
+        New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
+        Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value "# Old skill" -Encoding UTF8
+        Set-Content -Path (Join-Path $codexDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
+
+        try {
+            $r = Invoke-HT `
+                -HarnessHome $tempHome.FullName `
+                -WorkDir     $tempProject.FullName `
+                -ScriptArgs  @("update", "-Agent", "codex", "-Force") `
+                -StdinLines  @()
+
+            $skillContent = Get-Content (Join-Path $skillDir "SKILL.md") -Raw
+            $skillContent -match "git-flow skill" | Should Be $true
+            $skillContent -match "Codex" | Should Be $true
         }
         finally {
             Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue

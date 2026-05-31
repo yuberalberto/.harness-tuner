@@ -1,4 +1,4 @@
-Harness-tuner is an opinionated 5-layer Claude Code harness configuration: skills + hooks + MCP + rules + subagent recommendations, distributed per-project.
+Harness-tuner is an opinionated 5-layer AI coding harness configuration: skills + hooks + MCP + rules + subagent recommendations, distributed per-project.
 
 ---
 
@@ -40,6 +40,14 @@ ht init -Agent cascade
 ```
 
 This deploys harness layers into `.windsurf/` with Cascade-specific configurations.
+
+**For Codex:**
+
+```powershell
+ht init -Agent codex
+```
+
+This deploys harness layers into `.codex/` with Codex-specific rules, settings, and skills.
 
 ## What you get
 
@@ -95,6 +103,13 @@ Use `--force` to skip the confirmation prompt:
 ht update -Agent cascade --force
 ```
 
+**For Codex:**
+
+```powershell
+ht update -Agent codex
+ht update -Agent codex --force
+```
+
 Pull the latest framework version to your local clone:
 
 ```powershell
@@ -116,6 +131,13 @@ Claude Code exposes five distinct extension points. Most projects use one or two
 - MCP → global `mcp_config.json` (merged non-destructively)
 
 **Note:** Session hooks (`engram-session-start`, `engram-session-end`) are not available in Cascade due to platform limitations.
+
+**Codex** — deploys to `.codex/` with the following layer mappings:
+- Rules → `.codex/rules/`
+- Skills → `.codex/skills/`
+- MCP notes/config seed → `.codex/settings.json`
+
+**Note:** Project-local hooks are not installed for Codex yet; use Codex MCP configuration (for example `codex mcp`) for MCP servers.
 
 ## License
 

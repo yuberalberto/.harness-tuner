@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "engram": {
+      "command": "npx",
+      "args": ["-y", "@engram-ai/mcp-server"]
+    }
+  },
+  "notes": {
+    "hooks": "Project-local Codex hooks are not installed by harness-tuner yet.",
+    "skills": "Codex skills are deployed to .codex/skills from templates-claude/skills with Codex wording."
+  }
+}

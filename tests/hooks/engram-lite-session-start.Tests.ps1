@@ -2,7 +2,7 @@
 
 <#
 .SYNOPSIS
-    Pester tests for templates/hooks/engram-session-start.ps1
+    Pester tests for templates-claude/hooks/engram-lite-session-start.ps1
 
 .DESCRIPTION
     Covers:
@@ -14,7 +14,7 @@
 
 $HooksDir = Split-Path -Path $PSScriptRoot
 $RepoRoot = Split-Path -Path $HooksDir
-$HookScript = Join-Path -Path $RepoRoot -ChildPath "templates\hooks\engram-session-start.ps1"
+$HookScript = Join-Path -Path $RepoRoot -ChildPath "templates-claude\hooks\engram-lite-session-start.ps1"
 
 # Helper: invoke hook with payload via stdin and capture output + exit code
 function Invoke-HookWithPayload {
@@ -42,7 +42,7 @@ exit `$LASTEXITCODE
     }
 }
 
-Describe 'engram-session-start hook — existence' {
+Describe 'engram-lite-session-start hook — existence' {
     It 'should exist and be a PowerShell script' {
         Test-Path $HookScript | Should Be $true
         (Get-Item $HookScript).Extension | Should Be '.ps1'
@@ -53,7 +53,7 @@ Describe 'engram-session-start hook — existence' {
     }
 }
 
-Describe 'engram-session-start hook — with valid payload' {
+Describe 'engram-lite-session-start hook — with valid payload' {
     $payload = @{
         session_id = '12345-67890'
         cwd        = 'C:\Users\test\my-project'
@@ -68,7 +68,7 @@ Describe 'engram-session-start hook — with valid payload' {
     }
 
     It 'should output memory protocol header' {
-        $output | Should Match 'Engram Memory Protocol'
+        $output | Should Match 'Engram-Lite Memory Protocol'
     }
 
     It 'should mention mem_context' {
@@ -92,7 +92,7 @@ Describe 'engram-session-start hook — with valid payload' {
     }
 }
 
-Describe 'engram-session-start hook — with empty payload' {
+Describe 'engram-lite-session-start hook — with empty payload' {
     $result = Invoke-HookWithPayload -Payload ''
     $output = $result.Output -join "`n"
 
@@ -101,7 +101,7 @@ Describe 'engram-session-start hook — with empty payload' {
     }
 
     It 'should still output memory protocol' {
-        $output | Should Match 'Engram Memory Protocol'
+        $output | Should Match 'Engram-Lite Memory Protocol'
     }
 
     It 'should use default project name' {
@@ -109,7 +109,7 @@ Describe 'engram-session-start hook — with empty payload' {
     }
 }
 
-Describe 'engram-session-start hook — with malformed JSON' {
+Describe 'engram-lite-session-start hook — with malformed JSON' {
     $result = Invoke-HookWithPayload -Payload '{ invalid json }'
     $output = $result.Output -join "`n"
 
@@ -118,11 +118,11 @@ Describe 'engram-session-start hook — with malformed JSON' {
     }
 
     It 'should still output memory protocol' {
-        $output | Should Match 'Engram Memory Protocol'
+        $output | Should Match 'Engram-Lite Memory Protocol'
     }
 }
 
-Describe 'engram-session-start hook — with full payload' {
+Describe 'engram-lite-session-start hook — with full payload' {
     $payload = @{
         session_id = 'session-abc-123'
         cwd        = 'C:\projects\harness-tuner'
@@ -148,7 +148,7 @@ Describe 'engram-session-start hook — with full payload' {
     }
 }
 
-Describe 'engram-session-start hook — output format' {
+Describe 'engram-lite-session-start hook — output format' {
     $payload = @{
         session_id = 'test-session'
         cwd        = 'C:\test'
@@ -171,7 +171,7 @@ Describe 'engram-session-start hook — output format' {
     }
 }
 
-Describe 'engram-session-start script structure' {
+Describe 'engram-lite-session-start script structure' {
     $content = Get-Content $HookScript -Raw
 
     It 'should include error handling' {

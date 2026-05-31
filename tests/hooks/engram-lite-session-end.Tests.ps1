@@ -1,6 +1,6 @@
-Describe 'engram-session-end Hook' {
+Describe 'engram-lite-session-end Hook' {
   # Script under test
-  $hookScript = Resolve-Path "$PSScriptRoot/../../templates/hooks/engram-session-end.ps1"
+  $hookScript = Resolve-Path "$PSScriptRoot/../../templates-claude/hooks/engram-lite-session-end.ps1"
 
   Context 'Happy path: session end without prior summary save' {
     It 'should exit 0' {
@@ -37,7 +37,7 @@ Describe 'engram-session-end Hook' {
       { $output | ConvertFrom-Json } | Should Not Throw
     }
 
-    It 'should include requestMcpCall with engram tool' {
+    It 'should include requestMcpCall with engram-lite tool' {
       $mockPayload = @{
         eventType = 'Stop'
         sessionId = 'test-session-004'
@@ -47,7 +47,7 @@ Describe 'engram-session-end Hook' {
       # Output contains input payload and output JSON; just check for key strings
       ($output | Select-String 'hookSpecificOutput') | Should Not BeNullOrEmpty
       ($output | Select-String 'requestMcpCall') | Should Not BeNullOrEmpty
-      ($output | Select-String '"tool":\s*"engram"') | Should Not BeNullOrEmpty
+      ($output | Select-String '"tool":\s*"engram-lite"') | Should Not BeNullOrEmpty
       ($output | Select-String '"call":\s*"mem_session_summary"') | Should Not BeNullOrEmpty
     }
   }

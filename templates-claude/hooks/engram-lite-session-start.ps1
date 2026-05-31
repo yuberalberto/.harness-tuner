@@ -1,14 +1,14 @@
 <#
 .SYNOPSIS
-    SessionStart hook — loads prior session memory from Engram.
+    SessionStart hook — loads prior session memory from engram-lite.
 
 .DESCRIPTION
-    Claude Code invokes this script on SessionStart events to initialize engram
+    Claude Code invokes this script on SessionStart events to initialize memory
     memory context. The hook reads the SessionStart event payload from stdin,
     detects the current project, and instructs Claude Code to call mem_context
     to load prior memory for the session.
 
-    If engram MCP server is unavailable, the hook gracefully degrades (warns
+    If engram-lite MCP server is unavailable, the hook gracefully degrades (warns
     but does not crash) and exits 0.
 
 .NOTES
@@ -46,8 +46,14 @@ if (-not [string]::IsNullOrWhiteSpace($rawPayload)) {
 # ---------------------------------------------------------------------------
 # 2. Extract session context from payload
 # ---------------------------------------------------------------------------
-$cwd = $payload.cwd
-$sessionId = $payload.session_id
+$cwd = $null
+$sessionId = $null
+if ($payload -and ($payload.PSObject.Properties.Name -contains 'cwd')) {
+    $cwd = $payload.cwd
+}
+if ($payload -and ($payload.PSObject.Properties.Name -contains 'session_id')) {
+    $sessionId = $payload.session_id
+}
 
 # If no cwd in payload, use current directory
 if ([string]::IsNullOrWhiteSpace($cwd)) {
@@ -72,11 +78,11 @@ $projectName = if ($cwd) {
 # This signals the agent to call mem_context to load prior session memory.
 
 Write-Output @"
-## Engram Memory Protocol — Session Started
+## Engram-Lite Memory Protocol — Session Started
 
-A new Claude Code session has started. Loading prior session context from Engram persistent memory...
+A new Claude Code session has started. Loading prior session context from engram-lite persistent memory...
 
-**Instruction to Claude**: If you have access to the engram MCP tools, call mem_context now to load prior session memory and context for this project.
+**Instruction to Claude**: If you have access to the engram-lite MCP tools, call mem_context now to load prior session memory and context for this project.
 
 ### Memory Context
 The current working directory is: $cwd

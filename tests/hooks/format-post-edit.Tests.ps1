@@ -1,7 +1,7 @@
 #Requires -Modules Pester
 <#
 .SYNOPSIS
-    Pester tests for templates/hooks/format-post-edit.ps1
+    Pester tests for templates-claude/hooks/format-post-edit.ps1
 
 .DESCRIPTION
     Tests cover:
@@ -35,7 +35,7 @@
 
 BeforeAll {
     $script:RepoRoot = Split-Path (Split-Path $PSScriptRoot)
-    $script:HookPath = Join-Path $script:RepoRoot "templates" "hooks" "format-post-edit.ps1"
+    $script:HookPath = Join-Path $script:RepoRoot "templates-claude" "hooks" "format-post-edit.ps1"
 
     # -----------------------------------------------------------------------
     # Build a Claude Code PostToolUse payload JSON string.

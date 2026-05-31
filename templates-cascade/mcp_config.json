@@ -1,11 +1,8 @@
 {
   "mcpServers": {
-    "engram": {
-      "command": "npx",
-      "args": ["-y", "@engram-ai/mcp-server"],
-      "env": {
-        "ENGRAM_API_KEY": ""
-      }
+    "engram-lite": {
+      "command": "engram-lite",
+      "args": ["mcp", "--tools=agent"]
     }
   }
 }

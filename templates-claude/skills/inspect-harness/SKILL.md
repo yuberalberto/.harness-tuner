@@ -39,11 +39,11 @@ Read `.claude/settings.json` and extract:
 
 **Hooks section** (if present):
 - List event → script path mappings
-- Example: `"SessionStart" → "./.claude/hooks/engram-session-start.ps1"`
+- Example: `"SessionStart" → "./.claude/hooks/engram-lite-session-start.ps1"`
 
 **MCP Servers section** (if present):
 - List server name + transport method
-- Example: `"engram" (stdio), "context7" (stdio)`
+- Example: `"engram-lite" (stdio), "context7" (stdio)`
 
 **Permissions section** (if present):
 - Count and summarize allow/deny entries
@@ -77,12 +77,12 @@ Format output as structured markdown with file paths and counts:
 ...
 
 ## Hooks
-- SessionStart → ./.claude/hooks/engram-session-start.ps1
-- SessionEnd → ./.claude/hooks/engram-session-end.ps1
+- SessionStart → ./.claude/hooks/engram-lite-session-start.ps1
+- SessionEnd → ./.claude/hooks/engram-lite-session-end.ps1
 ...
 
 ## MCP Servers
-- engram (stdio)
+- engram-lite (stdio)
 - context7 (stdio)
 
 ## Permissions

@@ -6,14 +6,14 @@ Reads the Stop event payload from stdin and signals Claude Code to call
 mem_session_summary to persist a session summary before context is lost.
 
 .DESCRIPTION
-This hook integrates with the Engram MCP server to ensure session summaries
+This hook integrates with the engram-lite MCP server to ensure session summaries
 are saved at the end of each Claude Code session. If a summary was already
 saved during the session (idempotency), the hook becomes a no-op.
 
 The hook outputs a directive in hookSpecificOutput to instruct Claude Code
 to invoke the mem_session_summary MCP tool.
 
-Handles graceful degradation if the engram MCP server is not available.
+Handles graceful degradation if the engram-lite MCP server is not available.
 #>
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -51,7 +51,7 @@ $output = @{
   hookSpecificOutput = @{
     additionalContext = 'Session end detected. Invoke mem_session_summary to persist session summary.'
     requestMcpCall    = @{
-      tool  = 'engram'
+      tool  = 'engram-lite'
       call  = 'mem_session_summary'
       notes = 'Captures session goal, discoveries, accomplished work, and relevant files.'
     }

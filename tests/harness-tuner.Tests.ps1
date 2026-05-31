@@ -84,9 +84,9 @@ Describe "harness-tuner.ps1 — setup" {
             $mcpJson = @'
 {
   "mcpServers": {
-    "engram": {
-      "command": "node",
-      "args": ["engram-mcp-server"]
+    "engram-lite": {
+      "command": "engram-lite",
+      "args": ["mcp", "--tools=agent"]
     }
   }
 }
@@ -107,9 +107,9 @@ Describe "harness-tuner.ps1 — setup" {
             $settingsJson = @'
 {
   "mcpServers": {
-    "engram": {
-      "command": "npx",
-      "args": ["-y", "@engram-ai/mcp-server"]
+    "engram-lite": {
+      "command": "engram-lite",
+      "args": ["mcp", "--tools=agent"]
     }
   }
 }

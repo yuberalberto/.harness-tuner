@@ -73,13 +73,13 @@ This deploys harness layers into `.codex/` with Codex-specific rules, settings, 
 - `improve-codebase-architecture` — find deepening opportunities; propose refactors
 
 **Hooks (4)** — scripts on Claude Code lifecycle events, zero agent-context cost:
-- `engram-session-start` — calls `mem_context` at session start
-- `engram-session-end` — calls `mem_session_summary` at Stop
+- `engram-lite-session-start` — calls `mem_context` at session start
+- `engram-lite-session-end` — calls `mem_session_summary` at Stop
 - `format-post-edit` — runs prettier / ruff / gofmt after Edit or Write
 - `git-guardrails-pre-bash` — blocks destructive git commands before execution
 
 **MCP servers** — declared in `.claude/settings.json`, merged non-destructively on init:
-- `engram` (required) — cross-session memory via `mem_*` tools
+- `engram-lite` (required) — cross-session memory via `mem_*` tools
 
 Server binaries are the user's responsibility (treat like git or node).
 
@@ -130,7 +130,7 @@ Claude Code exposes five distinct extension points. Most projects use one or two
 - Hooks → `.windsurf/hooks.json`
 - MCP → global `mcp_config.json` (merged non-destructively)
 
-**Note:** Session hooks (`engram-session-start`, `engram-session-end`) are not available in Cascade due to platform limitations.
+**Note:** Session hooks (`engram-lite-session-start`, `engram-lite-session-end`) are not available in Cascade due to platform limitations.
 
 **Codex** — deploys to `.codex/` with the following layer mappings:
 - Rules → `.codex/rules/`

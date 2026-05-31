@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Pester tests for templates/hooks/git-guardrails-pre-bash.ps1
+Pester tests for templates-claude/hooks/git-guardrails-pre-bash.ps1
 
 .DESCRIPTION
 Covers:
@@ -20,7 +20,7 @@ Compatible with Pester v3 (no BeforeAll).
 #>
 
 # ---- Script-level setup -------------------------------------------------------
-$script:HookScript = Resolve-Path "$PSScriptRoot/../../templates/hooks/git-guardrails-pre-bash.ps1"
+$script:HookScript = Resolve-Path "$PSScriptRoot/../../templates-claude/hooks/git-guardrails-pre-bash.ps1"
 
 # Helper: run the hook with a given Bash command string piped as a PreToolUse
 # JSON payload. Optionally set extra env vars (as hashtable).

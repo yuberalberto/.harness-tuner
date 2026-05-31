@@ -3,12 +3,12 @@
     {
       "type": "command",
       "trigger": "SessionStart",
-      "command": "pwsh -File .claude/hooks/engram-session-start.ps1"
+      "command": "pwsh -File .claude/hooks/engram-lite-session-start.ps1"
     },
     {
       "type": "command",
       "trigger": "Stop",
-      "command": "pwsh -File .claude/hooks/engram-session-end.ps1"
+      "command": "pwsh -File .claude/hooks/engram-lite-session-end.ps1"
     },
     {
       "type": "command",
@@ -22,10 +22,9 @@
     }
   ],
   "mcpServers": {
-    "engram": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@engram/mcp-server"]
+    "engram-lite": {
+      "command": "engram-lite",
+      "args": ["mcp", "--tools=agent"]
     }
   },
   "permissions": {
@@ -39,9 +38,9 @@
       "Bash(git diff *)",
       "Bash(git log *)",
       "Bash(git branch)",
-      "mcp__engram__mem_search",
-      "mcp__engram__mem_context",
-      "mcp__engram__mem_get_observation"
+      "mcp__engram_lite__mem_search",
+      "mcp__engram_lite__mem_context",
+      "mcp__engram_lite__mem_get_observation"
     ]
   }
 }

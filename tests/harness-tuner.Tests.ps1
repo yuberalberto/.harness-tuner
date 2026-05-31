@@ -9,7 +9,7 @@
       - ht init in temp dir creates .claude/.harness-tuner-version
       - ht init aborts when marker already exists
       - ht init prompts on foreign .claude/ collision
-      - ht update interactive flow (mocked Read-Host)
+      - ht update-init interactive flow (mocked Read-Host)
       - ht self-update calls git pull (mocked git)
 #>
 
@@ -412,9 +412,9 @@ Describe "harness-tuner.ps1 — ht init (foreign .claude/ coexistence)" {
 }
 
 # ---------------------------------------------------------------------------
-# Describe: ht update — batch confirmation
+# Describe: ht update-init — batch confirmation
 # ---------------------------------------------------------------------------
-Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
+Describe "harness-tuner.ps1 — ht update-init (batch confirmation)" {
 
     It "should show summary table before any changes are applied" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
@@ -436,7 +436,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("n")
 
             $out = $r.Output -join "`n"
@@ -473,7 +473,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("n")
 
             $out = $r.Output -join "`n"
@@ -508,7 +508,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("y")
 
             $out = $r.Output -join "`n"
@@ -544,7 +544,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("")  # Empty string = Enter
 
             $out = $r.Output -join "`n"
@@ -575,7 +575,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("n")
 
             $out = $r.Output -join "`n"
@@ -610,7 +610,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Force") `
+                -ScriptArgs  @("update-init", "-Force") `
                 -StdinLines  @()
 
             $out = $r.Output -join "`n"
@@ -645,7 +645,7 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("review", "a", "s", "s", "s", "s")
 
             $out = $r.Output -join "`n"
@@ -665,9 +665,9 @@ Describe "harness-tuner.ps1 — ht update (batch confirmation)" {
 }
 
 # ---------------------------------------------------------------------------
-# Describe: ht update — interactive flow (legacy per-file mode via review)
+# Describe: ht update-init — interactive flow (legacy per-file mode via review)
 # ---------------------------------------------------------------------------
-Describe "harness-tuner.ps1 — ht update (interactive)" {
+Describe "harness-tuner.ps1 — ht update-init (interactive)" {
 
     It "should stamp new version when a file is accepted (review mode)" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
@@ -696,7 +696,7 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("review", "a", "s", "s", "s", "a")
 
             $out = $r.Output -join "`n"
@@ -727,7 +727,7 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @("review", "r", "s", "s", "s", "s")
 
             $marker = Get-Content (Join-Path $claudeDir ".harness-tuner-version") -Raw
@@ -748,7 +748,7 @@ Describe "harness-tuner.ps1 — ht update (interactive)" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update") `
+                -ScriptArgs  @("update-init") `
                 -StdinLines  @()
 
             $r.ExitCode | Should -Not -Be 0
@@ -832,7 +832,7 @@ Describe "harness-tuner.ps1 — legacy .windsurf/ ignored" {
 # ---------------------------------------------------------------------------
 # Describe: ht init/update -Agent codex
 # ---------------------------------------------------------------------------
-Describe "harness-tuner.ps1 — ht init/update -Agent codex" {
+Describe "harness-tuner.ps1 — ht init/update-init -Agent codex" {
 
     It "should create .codex/.harness-tuner-version in a fresh project" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
@@ -901,7 +901,7 @@ Describe "harness-tuner.ps1 — ht init/update -Agent codex" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "codex", "-Force") `
+                -ScriptArgs  @("update-init", "-Agent", "codex", "-Force") `
                 -StdinLines  @()
 
             $skillContent = Get-Content (Join-Path $skillDir "SKILL.md") -Raw
@@ -916,9 +916,9 @@ Describe "harness-tuner.ps1 — ht init/update -Agent codex" {
 }
 
 # ---------------------------------------------------------------------------
-# Describe: ht update -Agent cascade
+# Describe: ht update-init -Agent cascade
 # ---------------------------------------------------------------------------
-Describe "harness-tuner.ps1 — ht update -Agent cascade" {
+Describe "harness-tuner.ps1 — ht update-init -Agent cascade" {
 
     It "should update skills from templates/skills/" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
@@ -938,7 +938,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("a", "a", "a", "a", "a")
 
             # Check that the skill file was updated
@@ -951,7 +951,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
         }
     }
 
-    It "should route ht update -Agent cascade to Invoke-UpdateCascade" {
+    It "should route ht update-init -Agent cascade to Invoke-UpdateCascade" {
         $tempHome    = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-test-$([guid]::NewGuid())")
         $tempProject = New-Item -ItemType Directory -Force -Path (Join-Path ([IO.Path]::GetTempPath()) "ht-proj-$([guid]::NewGuid())")
         New-StubTemplates $tempHome.FullName | Out-Null
@@ -967,7 +967,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("s", "s", "s", "s", "s")
 
             # Should complete without error (even if we skip everything)
@@ -997,7 +997,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("a", "a", "a", "a", "a")
 
             # Check that the rule file was updated
@@ -1028,7 +1028,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("a", "a", "a", "a", "a")
 
             # Check that the hook file was updated
@@ -1065,7 +1065,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("s", "s", "s", "s", "a")
 
             # Check that hooks.json was merged (existing hook preserved, new hook added)
@@ -1095,7 +1095,7 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
             $r = Invoke-HT `
                 -HarnessHome $tempHome.FullName `
                 -WorkDir     $tempProject.FullName `
-                -ScriptArgs  @("update", "-Agent", "cascade") `
+                -ScriptArgs  @("update-init", "-Agent", "cascade") `
                 -StdinLines  @("a", "s", "s", "s", "s")
 
             # Check that version was stamped
@@ -1108,3 +1108,4 @@ Describe "harness-tuner.ps1 — ht update -Agent cascade" {
         }
     }
 }
+

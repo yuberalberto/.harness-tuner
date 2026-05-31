@@ -85,35 +85,41 @@ Server binaries are the user's responsibility (treat like git or node).
 
 ## Updating
 
-Update the current project against the latest templates:
+Update the framework itself (pull latest CLI/templates into your local clone):
 
 ```powershell
 ht update
 ```
 
+Deprecated alias (still works):
+
+```powershell
+ht self-update
+```
+
+Update the current project against the latest templates:
+
+```powershell
+ht update-init
+```
+
 **For Cascade (Windsurf):**
 
 ```powershell
-ht update -Agent cascade
+ht update-init -Agent cascade
 ```
 
 Use `--force` to skip the confirmation prompt:
 
 ```powershell
-ht update -Agent cascade --force
+ht update-init -Agent cascade --force
 ```
 
 **For Codex:**
 
 ```powershell
-ht update -Agent codex
-ht update -Agent codex --force
-```
-
-Pull the latest framework version to your local clone:
-
-```powershell
-ht self-update
+ht update-init -Agent codex
+ht update-init -Agent codex --force
 ```
 
 ## Why this exists

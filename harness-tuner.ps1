@@ -4,8 +4,8 @@
 # Usage:
 #   ht                   Show help
 #   ht init              Bootstrap current project
-#   ht update            Interactive diff/merge against templates-claude/
-#   ht self-update       git pull inside $HARNESS_TUNER_HOME
+#   ht update            Update harness-tuner framework (git pull)
+#   ht update-init       Interactive diff/merge templates into current project
 #   ht --version         Print framework version
 #   ht --changelog       Print CHANGELOG.md
 #   ht --help            Show detailed help
@@ -73,8 +73,8 @@ function Show-Help([bool]$Detailed = $false) {
     Write-Host "  ht                     Show this help summary"
     Write-Host "  ht init                Bootstrap current project (.claude/ setup)"
     Write-Host "  ht init -Agent codex   Bootstrap current project (.codex/ setup)"
-    Write-Host "  ht update              Interactive diff/merge templates-claude/ -> .claude/"
-    Write-Host "  ht self-update         git pull inside HARNESS_TUNER_HOME"
+    Write-Host "  ht update              Update framework (git pull in HARNESS_TUNER_HOME)"
+    Write-Host "  ht update-init         Update current project from latest templates"
     Write-Host "  ht --version           Print framework version"
     Write-Host "  ht --changelog         Print CHANGELOG.md"
     Write-Host "  ht --help              Show detailed help"
@@ -95,16 +95,19 @@ function Show-Help([bool]$Detailed = $false) {
         Write-Host "      Copies templates-claude/skills/ to .codex/skills/ with Codex wording."
         Write-Host "      Aborts if .codex/.harness-tuner-version already exists."
         Write-Host ""
-        Write-Host "  update [--force]" -ForegroundColor White
+        Write-Host "  update [alias: self-update]" -ForegroundColor White
+        Write-Host "      Updates harness-tuner framework by running 'git pull origin main'."
+        Write-Host "      Does NOT update existing projects — run 'ht update-init' per project."
+        Write-Host ""
+        Write-Host "  update-init [--force]" -ForegroundColor White
         Write-Host "      Compares templates-claude/ with project .claude/ and shows summary table."
         Write-Host "      Prompts once: Apply all changes? [Y/n/review]."
         Write-Host "      Y/Enter applies all, n aborts, review enters per-file diff flow."
         Write-Host "      --force skips all prompts and applies all changes."
         Write-Host "      Stamps .harness-tuner-version if any accepts were made."
         Write-Host ""
-        Write-Host "  self-update" -ForegroundColor White
-        Write-Host "      Runs 'git pull origin main' inside HARNESS_TUNER_HOME."
-        Write-Host "      Does NOT update existing projects — run 'ht update' per project."
+        Write-Host "  self-update [deprecated alias]" -ForegroundColor White
+        Write-Host "      Same as 'ht update' (framework update)."
         Write-Host ""
         Write-Host "VARIABLES:" -ForegroundColor White
         Write-Host "  HARNESS_TUNER_HOME = $HARNESS_TUNER_HOME"
@@ -479,7 +482,7 @@ function Invoke-Bootstrap {
     # Guard: already installed
     if (Test-Path $VERSION_STAMP) {
         Write-Err "Already installed (v$(Get-ProjectVersion))."
-        Write-Host "  Run 'ht update' to apply template changes." -ForegroundColor Yellow
+        Write-Host "  Run 'ht update-init' to apply template changes." -ForegroundColor Yellow
         exit 1
     }
 
@@ -578,7 +581,7 @@ function Invoke-BootstrapCascade {
     # Guard: already installed
     if (Test-Path $VERSION_STAMP_CASCADE) {
         Write-Err "Already installed (v$(Get-Content $VERSION_STAMP_CASCADE -Raw).Trim())."
-        Write-Host "  Run 'ht update' to apply template changes." -ForegroundColor Yellow
+        Write-Host "  Run 'ht update-init' to apply template changes." -ForegroundColor Yellow
         exit 1
     }
 
@@ -765,7 +768,7 @@ function Invoke-BootstrapCodex {
 
     if (Test-Path $VERSION_STAMP_CODEX) {
         Write-Err "Already installed (v$(Get-Content $VERSION_STAMP_CODEX -Raw).Trim())."
-        Write-Host "  Run 'ht update -Agent codex' to apply template changes." -ForegroundColor Yellow
+        Write-Host "  Run 'ht update-init -Agent codex' to apply template changes." -ForegroundColor Yellow
         exit 1
     }
 
@@ -860,7 +863,7 @@ function Invoke-BootstrapCodex {
 }
 
 # ---------------------------------------------------------------------------
-# Subcommand: update
+# Subcommand: update-init
 # ---------------------------------------------------------------------------
 
 function Get-ChangeSummary {
@@ -1668,7 +1671,7 @@ function Invoke-SelfUpdate {
     }
 
     Write-Host ""
-    Write-Ok "Self-update complete. Run 'ht update' in each project to apply changes."
+    Write-Ok "Framework update complete. Run 'ht update-init' in each project to apply changes."
     Write-Host ""
 }
 
@@ -1708,7 +1711,7 @@ elseif ($Command -eq "init") {
         Invoke-Bootstrap
     }
 }
-elseif ($Command -eq "update") {
+elseif ($Command -eq "update-init") {
     $normalizedAgent = $Agent.ToLowerInvariant()
     if ($normalizedAgent -eq "cascade") {
         Invoke-UpdateCascade -Force:$Force
@@ -1720,7 +1723,11 @@ elseif ($Command -eq "update") {
         Invoke-Update -Force:$Force
     }
 }
+elseif ($Command -eq "update") {
+    Invoke-SelfUpdate
+}
 elseif ($Command -eq "self-update") {
+    Write-Warn "'ht self-update' is deprecated. Use 'ht update' for framework updates."
     Invoke-SelfUpdate
 }
 elseif ($Command -eq "") {

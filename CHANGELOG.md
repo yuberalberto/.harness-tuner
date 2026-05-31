@@ -4,6 +4,24 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-05-31
+
+### Added
+
+- **New project update command**: `ht update-init` updates project scaffolding from templates (`.claude/`, `.codex/`, `.windsurf/` via `-Agent`).
+
+### Changed
+
+- **Clear command split for updates**:
+  - `ht update` now updates the **framework** itself (git pull in `HARNESS_TUNER_HOME`).
+  - `ht update-init` now updates the **initialized project** files.
+- **Documentation and CLI help refreshed**: usage, detailed help, and examples now reflect the new split.
+- **Compatibility path kept**: `ht self-update` remains available as a deprecated alias for framework update.
+
+### Migration Notes
+
+- If you previously ran `ht update` to refresh project files, use `ht update-init` from now on.
+
 ## [1.3.0] - 2026-05-31
 
 ### Changed

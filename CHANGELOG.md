@@ -4,6 +4,14 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-05-31
+
+### Changed
+
+- **Migrated engram to engram-lite**: renamed all hooks and references from `engram-session-*` to `engram-lite-session-*` to align with the updated engram-lite MCP server branding.
+- **Updated templates and tests**: `templates-claude/settings.json`, `templates-cascade/mcp_config.json`, and all Pester tests now reference `engram-lite` hooks and MCP declarations.
+- **Removed stale `.engram/config.json`**: no longer needed after the engram-lite migration.
+
 ## [1.2.0] - 2026-05-31
 
 ### Added

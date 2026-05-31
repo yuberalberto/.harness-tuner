@@ -4,6 +4,16 @@ All notable changes to init-ai are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-05-31
+
+### Added
+
+- **Codex agents templates path**: `ht init -Agent codex` and `ht update-init -Agent codex` now deploy `.agents/` from `templates-codex/agents/`.
+
+### Changed
+
+- **Codex init help and docs updated**: CLI help and README now document `templates-codex/agents/ -> .agents/`.
+
 ## [1.4.0] - 2026-05-31
 
 ### Added

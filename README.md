@@ -48,6 +48,7 @@ ht init -Agent codex
 ```
 
 This deploys harness layers into `.codex/` with Codex-specific rules, settings, and skills.
+It also deploys agent skills into project-local `.agents/` from `templates-codex/agents/`.
 
 ## What you get
 
@@ -142,6 +143,7 @@ Claude Code exposes five distinct extension points. Most projects use one or two
 - Rules → `.codex/rules/`
 - Skills → `.codex/skills/`
 - MCP notes/config seed → `.codex/settings.json`
+- Agent skills templates → `.agents/` (from `templates-codex/agents/`)
 
 **Note:** Project-local hooks are not installed for Codex yet; use Codex MCP configuration (for example `codex mcp`) for MCP servers.
 

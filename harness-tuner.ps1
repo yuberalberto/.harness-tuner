@@ -93,6 +93,7 @@ function Show-Help([bool]$Detailed = $false) {
         Write-Host "  init -Agent codex [-Language <lang>]" -ForegroundColor White
         Write-Host "      Copies templates-codex/rules/ and settings.json to .codex/."
         Write-Host "      Copies templates-claude/skills/ to .codex/skills/ with Codex wording."
+        Write-Host "      Copies templates-codex/agents/ into project .agents/."
         Write-Host "      Aborts if .codex/.harness-tuner-version already exists."
         Write-Host ""
         Write-Host "  update [alias: self-update]" -ForegroundColor White
@@ -408,6 +409,12 @@ function Copy-CodexTemplateFile([string]$SrcFile, [string]$DstFile, [string]$Use
     $compiled = Get-CompiledCodexSkillContent $SrcFile $UserLanguage
     Set-Content -Path $DstFile -Value $compiled -Encoding UTF8 -NoNewline
     Write-Ok "Copied $fileName"
+}
+
+function Copy-RawTemplateFile([string]$SrcFile, [string]$DstFile) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $DstFile) | Out-Null
+    Copy-Item -Force $SrcFile $DstFile
+    Write-Ok "Copied $(Split-Path $SrcFile -Leaf)"
 }
 
 function Get-CodexInstalledLanguage([string]$CodexDir) {
@@ -765,6 +772,7 @@ function Invoke-BootstrapCodex {
     $codexDir     = Join-Path $TARGET ".codex"
     $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-codex"
     $skillsDir    = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
+    $agentsDir    = Join-Path $templatesDir "agents"
 
     if (Test-Path $VERSION_STAMP_CODEX) {
         Write-Err "Already installed (v$(Get-Content $VERSION_STAMP_CODEX -Raw).Trim())."
@@ -840,6 +848,28 @@ function Invoke-BootstrapCodex {
             }
             else {
                 Copy-CodexTemplateFile $srcItem.FullName $dstFile $userLanguage
+            }
+        }
+    }
+
+    if (Test-Path $agentsDir) {
+        $agentFiles = Get-ChildItem -Recurse -File $agentsDir
+        foreach ($srcItem in $agentFiles) {
+            $rel     = $srcItem.FullName.Substring($agentsDir.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $TARGET ".agents\$rel"
+
+            if ($isForeign -and (Test-Path $dstFile)) {
+                $collisions++
+                $accepted = Invoke-CollisionPrompt $srcItem.FullName $dstFile ".agents/$rel"
+                if ($accepted) {
+                    Copy-RawTemplateFile $srcItem.FullName $dstFile
+                }
+                else {
+                    Write-Skip "Rejected: .agents/$rel"
+                }
+            }
+            else {
+                Copy-RawTemplateFile $srcItem.FullName $dstFile
             }
         }
     }
@@ -1434,6 +1464,7 @@ function Invoke-UpdateCodex {
     $codexDir     = Join-Path $TARGET ".codex"
     $templatesDir = Join-Path $HARNESS_TUNER_HOME "templates-codex"
     $skillsDir    = Join-Path $HARNESS_TUNER_HOME "templates-claude\skills"
+    $agentsDir    = Join-Path $templatesDir "agents"
 
     if (-not (Test-Path $codexDir)) {
         Write-Err "Project not initialized (.codex/ not found). Run 'ht init -Agent codex' first."
@@ -1545,6 +1576,46 @@ function Invoke-UpdateCodex {
         }
     }
 
+    if (Test-Path $agentsDir) {
+        $agentFiles = Get-ChildItem -Recurse -File $agentsDir
+        foreach ($srcItem in $agentFiles) {
+            $rel     = $srcItem.FullName.Substring($agentsDir.Length).TrimStart('\', '/')
+            $dstFile = Join-Path $TARGET ".agents\$rel"
+
+            if (Test-Path $dstFile) {
+                $srcHash = (Get-FileHash $srcItem.FullName -Algorithm MD5).Hash
+                $dstHash = (Get-FileHash $dstFile -Algorithm MD5).Hash
+                if ($srcHash -eq $dstHash) {
+                    continue
+                }
+                $summary = Get-ChangeSummary $srcItem.FullName $dstFile
+                $pendingChanges += @{
+                    File = ".agents/$rel"
+                    Action = "update"
+                    Added = $summary.Added
+                    Removed = $summary.Removed
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsCodexSkill = $false
+                    IsRawTemplate = $true
+                }
+            }
+            else {
+                $srcLines = (Get-Content $srcItem.FullName -ErrorAction SilentlyContinue | Measure-Object -Line).Lines
+                $pendingChanges += @{
+                    File = ".agents/$rel"
+                    Action = "new"
+                    Added = $srcLines
+                    Removed = 0
+                    SrcFile = $srcItem.FullName
+                    DstFile = $dstFile
+                    IsCodexSkill = $false
+                    IsRawTemplate = $true
+                }
+            }
+        }
+    }
+
     Show-ChangeSummaryTable $pendingChanges
 
     if ($pendingChanges.Count -eq 0) {
@@ -1581,7 +1652,10 @@ function Invoke-UpdateCodex {
 
     if ($applyAll) {
         foreach ($change in $pendingChanges) {
-            if ($change.IsCodexSkill) {
+            if ($change.IsRawTemplate) {
+                Copy-RawTemplateFile $change.SrcFile $change.DstFile
+            }
+            elseif ($change.IsCodexSkill) {
                 Copy-CodexTemplateFile $change.SrcFile $change.DstFile $userLanguage
             }
             else {
@@ -1611,7 +1685,10 @@ function Invoke-UpdateCodex {
 
             switch ($choice.ToLower()) {
                 "a" {
-                    if ($change.IsCodexSkill) {
+                    if ($change.IsRawTemplate) {
+                        Copy-RawTemplateFile $change.SrcFile $change.DstFile
+                    }
+                    elseif ($change.IsCodexSkill) {
                         Copy-CodexTemplateFile $change.SrcFile $change.DstFile $userLanguage
                     }
                     else {

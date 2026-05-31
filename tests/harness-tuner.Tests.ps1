@@ -116,6 +116,10 @@ Describe "harness-tuner.ps1 — setup" {
 '@
             Set-Content -Path (Join-Path $tplDir "settings.json") -Value $settingsJson -Encoding UTF8
 
+            $agentsSkillDir = Join-Path $tplDir "agents" "skills" "review"
+            New-Item -ItemType Directory -Force -Path $agentsSkillDir | Out-Null
+            Set-Content -Path (Join-Path $agentsSkillDir "SKILL.md") -Value "# review agent skill" -Encoding UTF8
+
             return $tplDir
         }
 
@@ -874,6 +878,7 @@ Describe "harness-tuner.ps1 — ht init/update-init -Agent codex" {
             Test-Path (Join-Path $codexDir "rules" "identity.md") | Should Be $true
             Test-Path (Join-Path $codexDir "settings.json") | Should Be $true
             Test-Path (Join-Path $codexDir "skills" "git-flow" "SKILL.md") | Should Be $true
+            Test-Path (Join-Path $tempProject.FullName ".agents" "skills" "review" "SKILL.md") | Should Be $true
 
             $skillContent = Get-Content (Join-Path $codexDir "skills" "git-flow" "SKILL.md") -Raw
             $skillContent | Should Match "Codex"
@@ -893,8 +898,11 @@ Describe "harness-tuner.ps1 — ht init/update-init -Agent codex" {
 
         $codexDir = Join-Path $tempProject.FullName ".codex"
         $skillDir = Join-Path $codexDir "skills" "git-flow"
+        $agentsSkillFile = Join-Path $tempProject.FullName ".agents" "skills" "review" "SKILL.md"
         New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
         Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value "# Old skill" -Encoding UTF8
+        New-Item -ItemType Directory -Force -Path (Split-Path $agentsSkillFile) | Out-Null
+        Set-Content -Path $agentsSkillFile -Value "# Old agent skill" -Encoding UTF8
         Set-Content -Path (Join-Path $codexDir ".harness-tuner-version") -Value "0.9.0" -Encoding UTF8
 
         try {
@@ -907,6 +915,9 @@ Describe "harness-tuner.ps1 — ht init/update-init -Agent codex" {
             $skillContent = Get-Content (Join-Path $skillDir "SKILL.md") -Raw
             $skillContent -match "git-flow skill" | Should Be $true
             $skillContent -match "Codex" | Should Be $true
+
+            $agentsSkillContent = Get-Content $agentsSkillFile -Raw
+            $agentsSkillContent -match "review agent skill" | Should Be $true
         }
         finally {
             Remove-Item -Recurse -Force $tempHome.FullName    -ErrorAction SilentlyContinue
